@@ -1,0 +1,270 @@
+From 87af8da054900fd05701c6d60a496b83fb8dbb63 Mon Sep 17 00:00:00 2001
+From: Philippe Mathieu-Daude <philmd@redhat.com>
+Date: Wed, 13 Feb 2019 09:50:47 +0100
+Subject: [PATCH 04/13] BaseTools: Add more checker in Decompress algorithm to
+ access the valid buffer (CVE FIX)
+
+Message-id: <20190213085050.20766-5-philmd@redhat.com>
+Patchwork-id: 84481
+O-Subject:  [RHEL-7.7 ovmf PATCH v3 4/7] BaseTools: Add more checker in
+	Decompress algorithm to access the valid buffer (CVE FIX)
+Bugzilla: 1666586
+Acked-by: Laszlo Ersek <lersek@redhat.com>
+Acked-by: Vitaly Kuznetsov <vkuznets@redhat.com>
+
+From: Laszlo Ersek <lersek@redhat.com>
+
+From: Liming Gao <liming.gao@intel.com>
+
+--v-- RHEL7 note start --v--
+
+Unfortunately, the upstream patch series was not structured according to
+the CVE reports. This patch contributes to fixing:
+
+- CVE-2017-5731
+- CVE-2017-5733
+- CVE-2017-5734
+- CVE-2017-5735
+
+but not CVE-2017-5732 (contrarily to the upstream commit message). The
+best I could achieve up-stream was to get the "CVE FIX" expression into
+the subject, and a whole-sale dump of the CVEs into the body. I had not
+been invited to the original (off-list, embargoed) analysis and review.
+
+The differences that "git-backport-diff" reports as "functional" for this
+backport aren't actually functional differences. They are due to
+downstream lacking two upstream commits:
+
+- f7496d717357 ("BaseTools: Clean up source files", 2018-07-09), with the
+  "usual" diffstat "289 files changed, 10645 insertions(+), 10645
+  deletions(-)";
+
+- more importantly, 472eb3b89682 ("BaseTools: Add --uefi option to enable
+  UefiCompress method", 2018-10-13).
+
+(Side note: in upstream, commit 472eb3b89682 was incorrectly reverted as
+part of 1ccc4d895dd8 ("Revert BaseTools: PYTHON3 migration", 2018-10-15),
+but then it was re-applied in f1400101a732.)
+
+In commit 472eb3b89682, the "UEFI" compression/decompression method was
+added to BaseTools, beyond the original "Tiano" method. This caused the
+Tiano method to be indented more deeply, in the main() function of
+"TianoCompress.c". (Also the original Decompress() function was renamed to
+TDecompress().) The CVE fix applies to the "Tiano" method, which RHEL8
+does have, but at a different nesting level. Therefore the changes have
+been backported manually, and the difference in indentation is also why
+"git-backport-diff" thinks the changes are functional.
+
+This backport, once applied, can be diffed against the upstream tree more
+easily as follows:
+
+  git diff -b HEAD..041d89bc0f01 -- \
+    BaseTools/Source/C/Common/Decompress.c \
+    BaseTools/Source/C/TianoCompress/TianoCompress.c
+
+--^-- RHEL7 note end --^--
+
+Fix CVE-2017-5731,CVE-2017-5732,CVE-2017-5733,CVE-2017-5734,CVE-2017-5735
+https://bugzilla.tianocore.org/show_bug.cgi?id=686
+
+Contributed-under: TianoCore Contribution Agreement 1.1
+Signed-off-by: Holtsclaw Brent <brent.holtsclaw@intel.com>
+Signed-off-by: Liming Gao <liming.gao@intel.com>
+Reviewed-by: Star Zeng <star.zeng@intel.com>
+Acked-by: Laszlo Ersek <lersek@redhat.com>
+(cherry picked from commit 041d89bc0f0119df37a5fce1d0f16495ff905089)
+Signed-off-by: Laszlo Ersek <lersek@redhat.com>
+(cherry picked from commit 29c394f110b1f769e629e8775874261e33d4abd9)
+Signed-off-by: Philippe Mathieu-Daude <philmd@redhat.com>
+---
+ BaseTools/Source/C/Common/Decompress.c           | 23 +++++++++++++++++++--
+ BaseTools/Source/C/TianoCompress/TianoCompress.c | 26 +++++++++++++++++++++++-
+ 2 files changed, 46 insertions(+), 3 deletions(-)
+
+diff --git a/BaseTools/Source/C/Common/Decompress.c b/BaseTools/Source/C/Common/Decompress.c
+index 8f1afb4..bdc10f5 100644
+--- a/BaseTools/Source/C/Common/Decompress.c
++++ b/BaseTools/Source/C/Common/Decompress.c
+@@ -194,12 +194,16 @@ Returns:
+   UINT16  Avail;
+   UINT16  NextCode;
+   UINT16  Mask;
++  UINT16  MaxTableLength;
+ 
+   for (Index = 1; Index <= 16; Index++) {
+     Count[Index] = 0;
+   }
+ 
+   for (Index = 0; Index < NumOfChar; Index++) {
++    if (BitLen[Index] > 16) {
++      return (UINT16) BAD_TABLE;
++    }
+     Count[BitLen[Index]]++;
+   }
+ 
+@@ -237,6 +241,7 @@ Returns:
+ 
+   Avail = NumOfChar;
+   Mask  = (UINT16) (1U << (15 - TableBits));
++  MaxTableLength = (UINT16) (1U << TableBits);
+ 
+   for (Char = 0; Char < NumOfChar; Char++) {
+ 
+@@ -250,6 +255,9 @@ Returns:
+     if (Len <= TableBits) {
+ 
+       for (Index = Start[Len]; Index < NextCode; Index++) {
++        if (Index >= MaxTableLength) {
++          return (UINT16) BAD_TABLE;
++        }
+         Table[Index] = Char;
+       }
+ 
+@@ -643,10 +651,14 @@ Returns: (VOID)
+ 
+       BytesRemain--;
+       while ((INT16) (BytesRemain) >= 0) {
+-        Sd->mDstBase[Sd->mOutBuf++] = Sd->mDstBase[DataIdx++];
+         if (Sd->mOutBuf >= Sd->mOrigSize) {
+           return ;
+         }
++        if (DataIdx >= Sd->mOrigSize) {
++          Sd->mBadTableFlag = (UINT16) BAD_TABLE;
++          return ;
++        }
++        Sd->mDstBase[Sd->mOutBuf++] = Sd->mDstBase[DataIdx++];
+ 
+         BytesRemain--;
+       }
+@@ -684,6 +696,7 @@ Returns:
+ --*/
+ {
+   UINT8 *Src;
++  UINT32 CompSize;
+ 
+   *ScratchSize  = sizeof (SCRATCH_DATA);
+ 
+@@ -692,7 +705,13 @@ Returns:
+     return EFI_INVALID_PARAMETER;
+   }
+ 
++  CompSize = Src[0] + (Src[1] << 8) + (Src[2] << 16) + (Src[3] << 24);
+   *DstSize = Src[4] + (Src[5] << 8) + (Src[6] << 16) + (Src[7] << 24);
++
++  if (SrcSize < CompSize + 8 || (CompSize + 8) < 8) {
++    return EFI_INVALID_PARAMETER;
++  }
++
+   return EFI_SUCCESS;
+ }
+ 
+@@ -752,7 +771,7 @@ Returns:
+   CompSize  = Src[0] + (Src[1] << 8) + (Src[2] << 16) + (Src[3] << 24);
+   OrigSize  = Src[4] + (Src[5] << 8) + (Src[6] << 16) + (Src[7] << 24);
+ 
+-  if (SrcSize < CompSize + 8) {
++  if (SrcSize < CompSize + 8 || (CompSize + 8) < 8) {
+     return EFI_INVALID_PARAMETER;
+   }
+ 
+diff --git a/BaseTools/Source/C/TianoCompress/TianoCompress.c b/BaseTools/Source/C/TianoCompress/TianoCompress.c
+index 046fb36..d07fd9e 100644
+--- a/BaseTools/Source/C/TianoCompress/TianoCompress.c
++++ b/BaseTools/Source/C/TianoCompress/TianoCompress.c
+@@ -1753,6 +1753,7 @@ Returns:
+   SCRATCH_DATA      *Scratch;
+   UINT8      *Src;
+   UINT32     OrigSize;
++  UINT32     CompSize;
+ 
+   SetUtilityName(UTILITY_NAME);
+   
+@@ -1761,6 +1762,7 @@ Returns:
+   OutBuffer = NULL;
+   Scratch   = NULL;
+   OrigSize = 0;
++  CompSize = 0;
+   InputLength = 0;
+   InputFileName = NULL;
+   OutputFileName = NULL;
+@@ -1979,15 +1981,24 @@ Returns:
+   if (DebugMode) {
+     DebugMsg(UTILITY_NAME, 0, DebugLevel, "Decoding\n", NULL);
+   }
++  if (InputLength < 8){
++    Error (NULL, 0, 3000, "Invalid", "The input file %s is too small.", InputFileName);
++    goto ERROR;
++  }
+   //
+   // Get Compressed file original size
+   // 
+   Src     = (UINT8 *)FileBuffer;                     
+   OrigSize  = Src[4] + (Src[5] << 8) + (Src[6] << 16) + (Src[7] << 24);  
++  CompSize  = Src[0] + (Src[1] << 8) + (Src[2] <<16) + (Src[3] <<24);
+   
+   //
+   // Allocate OutputBuffer
+   //
++  if (InputLength < CompSize + 8 || (CompSize + 8) < 8) {
++    Error (NULL, 0, 3000, "Invalid", "The input file %s data is invalid.", InputFileName);
++    goto ERROR;
++  }
+   OutBuffer = (UINT8 *)malloc(OrigSize);
+   if (OutBuffer == NULL) {
+     Error (NULL, 0, 4001, "Resource:", "Memory cannot be allocated!");
+@@ -2171,12 +2182,16 @@ Returns:
+   UINT16  Mask;
+   UINT16  WordOfStart;
+   UINT16  WordOfCount;
++  UINT16  MaxTableLength;
+ 
+   for (Index = 0; Index <= 16; Index++) {
+     Count[Index] = 0;
+   }
+ 
+   for (Index = 0; Index < NumOfChar; Index++) {
++    if (BitLen[Index] > 16) {
++      return (UINT16) BAD_TABLE;
++    }
+     Count[BitLen[Index]]++;
+   }
+ 
+@@ -2220,6 +2235,7 @@ Returns:
+ 
+   Avail = NumOfChar;
+   Mask  = (UINT16) (1U << (15 - TableBits));
++  MaxTableLength = (UINT16) (1U << TableBits);
+ 
+   for (Char = 0; Char < NumOfChar; Char++) {
+ 
+@@ -2233,6 +2249,9 @@ Returns:
+     if (Len <= TableBits) {
+ 
+       for (Index = Start[Len]; Index < NextCode; Index++) {
++        if (Index >= MaxTableLength) {
++          return (UINT16) BAD_TABLE;
++        }
+         Table[Index] = Char;
+       }
+ 
+@@ -2617,11 +2636,16 @@ Returns: (VOID)
+       DataIdx     = Sd->mOutBuf - DecodeP (Sd) - 1;
+ 
+       BytesRemain--;
++
+       while ((INT16) (BytesRemain) >= 0) {
+-        Sd->mDstBase[Sd->mOutBuf++] = Sd->mDstBase[DataIdx++];
+         if (Sd->mOutBuf >= Sd->mOrigSize) {
+           goto Done ;
+         }
++        if (DataIdx >= Sd->mOrigSize) {
++          Sd->mBadTableFlag = (UINT16) BAD_TABLE;
++          goto Done ;
++        }
++        Sd->mDstBase[Sd->mOutBuf++] = Sd->mDstBase[DataIdx++];
+ 
+         BytesRemain--;
+       }
+-- 
+1.8.3.1
+

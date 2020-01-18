@@ -7,7 +7,7 @@ ExclusiveArch: x86_64 aarch64
 
 Name:       ovmf
 Version:    %{GITDATE}
-Release:    3.git%{GITCOMMIT}%{?dist}.1
+Release:    6.git%{GITCOMMIT}%{?dist}
 Summary:    UEFI firmware for 64-bit virtual machines
 Group:      Applications/Emulators
 License:    BSD and OpenSSL and MIT
@@ -19,9 +19,12 @@ URL:        http://www.tianocore.org
 # | xz -9ev >/tmp/ovmf-$COMMIT.tar.xz
 Source0: http://batcave.lab.eng.brq.redhat.com/www/ovmf-%{GITCOMMIT}.tar.xz
 Source1: ovmf-whitepaper-c770f8c.txt
-Source2: openssl-fedora-264133c642cdb6fc916f1d9bba9db4cb4cd4a17c.tar.xz
+Source2: openssl-fedora-d2ede125556ac99aa0faa7744c703af3f559094e.tar.xz
 Source3: ovmf-vars-generator
 Source4: LICENSE.qosb
+
+Source10: ovmf-sb.json
+Source11: ovmf.json
 
 Patch0003: 0003-advertise-OpenSSL-on-TianoCore-splash-screen-boot-lo.patch
 Patch0004: 0004-OvmfPkg-increase-max-debug-message-length-to-512-RHE.patch
@@ -42,10 +45,42 @@ Patch0019: 0019-OvmfPkg-silence-EFI_D_VERBOSE-0x00400000-in-NvmExpre.patch
 Patch20: ovmf-OvmfPkg-PlatformBootManagerLib-connect-consoles-unco.patch
 Patch21: ovmf-ArmVirtPkg-PlatformBootManagerLib-connect-Virtio-RNG.patch
 Patch22: ovmf-OvmfPkg-PlatformBootManagerLib-connect-Virtio-RNG-de.patch
-# For bz#1684006 - CVE-2018-12180 OVMF: edk2: Buffer Overflow in BlockIo service for RAM disk [rhel-7.6.z]
-Patch23: ovmf-MdeModulePkg-PartitionDxe-Ensure-blocksize-holds-MBR.patch
-# For bz#1684006 - CVE-2018-12180 OVMF: edk2: Buffer Overflow in BlockIo service for RAM disk [rhel-7.6.z]
-Patch24: ovmf-MdeModulePkg-RamDiskDxe-Restrict-on-RAM-disk-size-CV.patch
+# For bz#1666586 - CVE-2017-5731 CVE-2017-5732 CVE-2017-5733 CVE-2017-5734 CVE-2017-5735 CVE-2018-3613 OVMF: various flaws [rhel-7]
+Patch23: ovmf-MdeModulePkg-Variable-Fix-Timestamp-zeroing-issue-on.patch
+# For bz#1666586 - CVE-2017-5731 CVE-2017-5732 CVE-2017-5733 CVE-2017-5734 CVE-2017-5735 CVE-2018-3613 OVMF: various flaws [rhel-7]
+Patch24: ovmf-MdePkg-Add-more-checker-in-UefiDecompressLib-to-acce.patch
+# For bz#1666586 - CVE-2017-5731 CVE-2017-5732 CVE-2017-5733 CVE-2017-5734 CVE-2017-5735 CVE-2018-3613 OVMF: various flaws [rhel-7]
+Patch25: ovmf-IntelFrameworkModulePkg-Add-more-checker-in-UefiTian.patch
+# For bz#1666586 - CVE-2017-5731 CVE-2017-5732 CVE-2017-5733 CVE-2017-5734 CVE-2017-5735 CVE-2018-3613 OVMF: various flaws [rhel-7]
+Patch26: ovmf-BaseTools-Add-more-checker-in-Decompress-algorithm-t.patch
+# For bz#1666586 - CVE-2017-5731 CVE-2017-5732 CVE-2017-5733 CVE-2017-5734 CVE-2017-5735 CVE-2018-3613 OVMF: various flaws [rhel-7]
+Patch27: ovmf-BaseTools-Fix-UEFI-and-Tiano-Decompression-logic-iss.patch
+# For bz#1666586 - CVE-2017-5731 CVE-2017-5732 CVE-2017-5733 CVE-2017-5734 CVE-2017-5735 CVE-2018-3613 OVMF: various flaws [rhel-7]
+Patch28: ovmf-MdePkg-BaseUefiDecompressLib-Fix-UEFI-Decompression-.patch
+# For bz#1666586 - CVE-2017-5731 CVE-2017-5732 CVE-2017-5733 CVE-2017-5734 CVE-2017-5735 CVE-2018-3613 OVMF: various flaws [rhel-7]
+Patch29: ovmf-IntelFrameworkModulePkg-Fix-UEFI-and-Tiano-Decompres.patch
+# For bz#1684007 - CVE-2018-12180 OVMF: edk2: Buffer Overflow in BlockIo service for RAM disk [rhel-7.7]
+Patch30: ovmf-MdeModulePkg-PartitionDxe-Ensure-blocksize-holds-MBR.patch
+# For bz#1684007 - CVE-2018-12180 OVMF: edk2: Buffer Overflow in BlockIo service for RAM disk [rhel-7.7]
+Patch31: ovmf-MdeModulePkg-RamDiskDxe-Restrict-on-RAM-disk-size-CV.patch
+# For bz#1650390 - CVE-2018-5407 OVMF: openssl: Side-channel vulnerability on SMT/Hyper-Threading architectures (PortSmash) [rhel-7]
+Patch33: ovmf-Upgrade-OpenSSL-to-1.1.0j.patch
+# For bz#1691479 - CVE-2018-12181 OVMF: edk2: Stack buffer overflow with corrupted BMP [rhel-7]
+Patch34: ovmf-MdeModulePkg-HiiDatabase-Fix-potential-integer-overf.patch
+# For bz#1691479 - CVE-2018-12181 OVMF: edk2: Stack buffer overflow with corrupted BMP [rhel-7]
+Patch35: ovmf-MdeModulePkg-HiiImage-Fix-stack-overflow-when-corrup.patch
+# For bz#1691647 - CVE-2019-0160 OVMF: edk2: buffer overflows in PartitionDxe and UdfDxe with long file names and invalid UDF media [rhel-7]
+Patch36: ovmf-MdeModulePkg-PartitionDxe-Add-check-for-underlying-d.patch
+# For bz#1691647 - CVE-2019-0160 OVMF: edk2: buffer overflows in PartitionDxe and UdfDxe with long file names and invalid UDF media [rhel-7]
+Patch37: ovmf-MdeModulePkg-UdfDxe-Refine-boundary-checks-for-file-.patch
+# For bz#1691647 - CVE-2019-0160 OVMF: edk2: buffer overflows in PartitionDxe and UdfDxe with long file names and invalid UDF media [rhel-7]
+Patch38: ovmf-MdeModulePkg-UdfDxe-Add-boundary-check-the-read-of-F.patch
+# For bz#1691647 - CVE-2019-0160 OVMF: edk2: buffer overflows in PartitionDxe and UdfDxe with long file names and invalid UDF media [rhel-7]
+Patch39: ovmf-MdeModulePkg-UdfDxe-Add-boundary-check-for-Component.patch
+# For bz#1691647 - CVE-2019-0160 OVMF: edk2: buffer overflows in PartitionDxe and UdfDxe with long file names and invalid UDF media [rhel-7]
+Patch40: ovmf-MdeModulePkg-UdfDxe-Add-boundary-check-for-getting-v.patch
+# For bz#1697534 - CVE-2019-0161 ovmf: edk2: stack overflow in XHCI causing denial of service [rhel-7]
+Patch41: ovmf-MdeModulePkg-UsbBusDxe-Fix-wrong-buffer-length-used-.patch
 
 
 # python2-devel and libuuid-devel are required for building tools
@@ -81,7 +116,7 @@ Summary:    UEFI firmware for x86_64 virtual machines
 BuildArch:  noarch
 
 # OVMF includes the Secure Boot feature; it has a builtin OpenSSL library.
-Provides:   bundled(openssl) = 1.1.0h
+Provides:   bundled(openssl) = 1.1.0i
 License:    BSD and OpenSSL
 
 # URL taken from the Maintainers.txt file.
@@ -161,6 +196,7 @@ echo "Applied $COUNT patches"
 rm -f $PATCHLIST
 
 cp -a -- %{SOURCE1} %{SOURCE3} .
+cp -a -- %{SOURCE10} %{SOURCE11} .
 tar -C CryptoPkg/Library/OpensslLib -a -f %{SOURCE2} -x
 
 # Done by %setup, but we do not use it for the auxiliary tarballs
@@ -278,6 +314,10 @@ install -m 0644 UefiShell.iso                             $RPM_BUILD_ROOT%{_data
 install -m 0644 OvmfPkg/README                            $RPM_BUILD_ROOT%{_docdir}/%{subpkgname}/README
 install -m 0644 ovmf-whitepaper-c770f8c.txt               $RPM_BUILD_ROOT%{_docdir}/%{subpkgname}/ovmf-whitepaper-c770f8c.txt
 
+mkdir -p $RPM_BUILD_ROOT%{_datadir}/qemu/firmware
+install -m 0644 ovmf-sb.json $RPM_BUILD_ROOT%{_datadir}/qemu/firmware/50-ovmf-sb.json
+install -m 0644 ovmf.json    $RPM_BUILD_ROOT%{_datadir}/qemu/firmware/60-ovmf.json
+
 copy_license CryptoPkg/Library/OpensslLib/openssl/LICENSE OpensslLib
 
 %else
@@ -328,6 +368,11 @@ chmod 0644 -- $RPM_BUILD_ROOT%{_datadir}/AAVMF/AAVMF_*.fd
 %{_datadir}/OVMF/OVMF_VARS.secboot.fd
 %{_datadir}/OVMF/UefiShell.iso
 
+%dir %{_datadir}/qemu
+%dir %{_datadir}/qemu/firmware
+%{_datadir}/qemu/firmware/50-ovmf-sb.json
+%{_datadir}/qemu/firmware/60-ovmf.json
+
 %else
 %dir %{_datadir}/AAVMF/
 %{_datadir}/AAVMF/AAVMF_CODE.verbose.fd
@@ -360,11 +405,47 @@ true
 %endif
 
 %changelog
-* Tue Mar 05 2019 Miroslav Rezanina <mrezanin@redhat.com> - 20180508-3.gitee3198e672e2.el7_6.1
-- ovmf-MdeModulePkg-PartitionDxe-Ensure-blocksize-holds-MBR.patch [bz#1684006]
-- ovmf-MdeModulePkg-RamDiskDxe-Restrict-on-RAM-disk-size-CV.patch [bz#1684006]
-- Resolves: bz#1684006
-  (CVE-2018-12180 OVMF: edk2: Buffer Overflow in BlockIo service for RAM disk [rhel-7.6.z])
+* Mon Apr 15 2019 Miroslav Rezanina <mrezanin@redhat.com> - 20180508-6.gitee3198e672e2.el7
+- ovmf-MdeModulePkg-HiiDatabase-Fix-potential-integer-overf.patch [bz#1691479]
+- ovmf-MdeModulePkg-HiiImage-Fix-stack-overflow-when-corrup.patch [bz#1691479]
+- ovmf-MdeModulePkg-PartitionDxe-Add-check-for-underlying-d.patch [bz#1691647]
+- ovmf-MdeModulePkg-UdfDxe-Refine-boundary-checks-for-file-.patch [bz#1691647]
+- ovmf-MdeModulePkg-UdfDxe-Add-boundary-check-the-read-of-F.patch [bz#1691647]
+- ovmf-MdeModulePkg-UdfDxe-Add-boundary-check-for-Component.patch [bz#1691647]
+- ovmf-MdeModulePkg-UdfDxe-Add-boundary-check-for-getting-v.patch [bz#1691647]
+- ovmf-MdeModulePkg-UsbBusDxe-Fix-wrong-buffer-length-used-.patch [bz#1697534]
+- Resolves: bz#1691479
+  (CVE-2018-12181 OVMF: edk2: Stack buffer overflow with corrupted BMP [rhel-7])
+- Resolves: bz#1691647
+  (CVE-2019-0160 OVMF: edk2: buffer overflows in PartitionDxe and UdfDxe with long file names and invalid UDF media [rhel-7])
+- Resolves: bz#1697534
+  (CVE-2019-0161 ovmf: edk2: stack overflow in XHCI causing denial of service [rhel-7])
+
+* Thu Mar 07 2019 Miroslav Rezanina <mrezanin@redhat.com> - 20180508-5.gitee3198e672e2.el7
+- ovmf-MdeModulePkg-Variable-Fix-Timestamp-zeroing-issue-on.patch [bz#1666586]
+- ovmf-MdePkg-Add-more-checker-in-UefiDecompressLib-to-acce.patch [bz#1666586]
+- ovmf-IntelFrameworkModulePkg-Add-more-checker-in-UefiTian.patch [bz#1666586]
+- ovmf-BaseTools-Add-more-checker-in-Decompress-algorithm-t.patch [bz#1666586]
+- ovmf-BaseTools-Fix-UEFI-and-Tiano-Decompression-logic-iss.patch [bz#1666586]
+- ovmf-MdePkg-BaseUefiDecompressLib-Fix-UEFI-Decompression-.patch [bz#1666586]
+- ovmf-IntelFrameworkModulePkg-Fix-UEFI-and-Tiano-Decompres.patch [bz#1666586]
+- ovmf-MdeModulePkg-PartitionDxe-Ensure-blocksize-holds-MBR.patch [bz#1684007]
+- ovmf-MdeModulePkg-RamDiskDxe-Restrict-on-RAM-disk-size-CV.patch [bz#1684007]
+- ovmf-redhat-openssl-update-introduce-MOCK-shorthand-for-m.patch [bz#1650390]
+- ovmf-redhat-openssl-update-enable-the-bootstrap-container.patch [bz#1650390]
+- ovmf-redhat-consume-OpenSSL-1.1.0i-from-Fedora-28.patch [bz#1650390]
+- ovmf-Upgrade-OpenSSL-to-1.1.0j.patch [bz#1650390]
+- Resolves: bz#1650390
+  (CVE-2018-5407 OVMF: openssl: Side-channel vulnerability on SMT/Hyper-Threading architectures (PortSmash) [rhel-7])
+- Resolves: bz#1666586
+  (CVE-2017-5731 CVE-2017-5732 CVE-2017-5733 CVE-2017-5734 CVE-2017-5735 CVE-2018-3613 OVMF: various flaws [rhel-7])
+- Resolves: bz#1684007
+  (CVE-2018-12180 OVMF: edk2: Buffer Overflow in BlockIo service for RAM disk [rhel-7.7])
+
+* Thu Nov 29 2018 Miroslav Rezanina <mrezanin@redhat.com> - 20180508-4.gitee3198e672e2.el7
+- ovmf-redhat-provide-firmware-descriptor-meta-files.patch [bz#1608599]
+- Resolves: bz#1608599
+  ([RHEL 7.7] RFE: provide firmware descriptor meta-files for OVMF)
 
 * Fri Jul 27 2018 Miroslav Rezanina <mrezanin@redhat.com> - 20180508-3.gitee3198e672e2.el7
 - ovmf-redhat-provide-virtual-bundled-OpenSSL-in-OVMF.patch [bz#1607792]

@@ -1,0 +1,358 @@
+From 070a96e19dc08a87906035a1b0a67e8a3973a900 Mon Sep 17 00:00:00 2001
+From: Laszlo Ersek <lersek@redhat.com>
+Date: Fri, 22 Mar 2019 21:53:20 +0100
+Subject: [PATCH 4/8] MdeModulePkg/UdfDxe: Refine boundary checks for file/path
+ name string
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Message-id: <20190322205323.17693-3-lersek@redhat.com>
+Patchwork-id: 85132
+O-Subject:  [RHEL-7.7 ovmf PATCH 2/5] MdeModulePkg/UdfDxe: Refine boundary checks
+	for file/path name string
+Bugzilla: 1691647
+Acked-by: Philippe Mathieu-Daudé <philmd@redhat.com>
+Acked-by: Vitaly Kuznetsov <vkuznets@redhat.com>
+
+From: Hao Wu <hao.a.wu@intel.com>
+
+REF:https://bugzilla.tianocore.org/show_bug.cgi?id=828
+
+The commit refines the boundary checks for file/path name string to
+prevent possible buffer overrun.
+
+Cc: Ruiyu Ni <ruiyu.ni@intel.com>
+Cc: Jiewen Yao <jiewen.yao@intel.com>
+Contributed-under: TianoCore Contribution Agreement 1.1
+Signed-off-by: Hao Wu <hao.a.wu@intel.com>
+Reviewed-by: Paulo Alcantara <palcantara@suse.de>
+Acked-by: Star Zeng <star.zeng@intel.com>
+(cherry picked from commit b9ae1705adfdd43668027a25a2b03c2e81960219)
+Signed-off-by: Laszlo Ersek <lersek@redhat.com>
+---
+ MdeModulePkg/Universal/Disk/UdfDxe/File.c          | 30 ++++++++--
+ .../Universal/Disk/UdfDxe/FileSystemOperations.c   | 65 +++++++++++++++++++---
+ MdeModulePkg/Universal/Disk/UdfDxe/Udf.h           | 30 +++++++++-
+ 3 files changed, 110 insertions(+), 15 deletions(-)
+
+diff --git a/MdeModulePkg/Universal/Disk/UdfDxe/File.c b/MdeModulePkg/Universal/Disk/UdfDxe/File.c
+index 6f07bf2..bd723d0 100644
+--- a/MdeModulePkg/Universal/Disk/UdfDxe/File.c
++++ b/MdeModulePkg/Universal/Disk/UdfDxe/File.c
+@@ -2,6 +2,7 @@
+   Handle operations in files and directories from UDF/ECMA-167 file systems.
+ 
+   Copyright (C) 2014-2017 Paulo Alcantara <pcacjr@zytor.com>
++  Copyright (c) 2018, Intel Corporation. All rights reserved.<BR>
+ 
+   This program and the accompanying materials are licensed and made available
+   under the terms and conditions of the BSD License which accompanies this
+@@ -248,7 +249,7 @@ UdfOpen (
+     FileName = TempFileName + 1;
+   }
+ 
+-  StrCpyS (NewPrivFileData->FileName, UDF_PATH_LENGTH, FileName);
++  StrCpyS (NewPrivFileData->FileName, UDF_FILENAME_LENGTH, FileName);
+ 
+   Status = GetFileSize (
+     PrivFsData->BlockIo,
+@@ -444,7 +445,7 @@ UdfRead (
+       FreePool ((VOID *)NewFileEntryData);
+       NewFileEntryData = FoundFile.FileEntry;
+ 
+-      Status = GetFileNameFromFid (NewFileIdentifierDesc, FileName);
++      Status = GetFileNameFromFid (NewFileIdentifierDesc, ARRAY_SIZE (FileName), FileName);
+       if (EFI_ERROR (Status)) {
+         FreePool ((VOID *)FoundFile.FileIdentifierDesc);
+         goto Error_Get_FileName;
+@@ -456,7 +457,7 @@ UdfRead (
+       FoundFile.FileIdentifierDesc  = NewFileIdentifierDesc;
+       FoundFile.FileEntry           = NewFileEntryData;
+ 
+-      Status = GetFileNameFromFid (FoundFile.FileIdentifierDesc, FileName);
++      Status = GetFileNameFromFid (FoundFile.FileIdentifierDesc, ARRAY_SIZE (FileName), FileName);
+       if (EFI_ERROR (Status)) {
+         goto Error_Get_FileName;
+       }
+@@ -718,6 +719,12 @@ UdfSetPosition (
+ /**
+   Get information about a file.
+ 
++  @attention This is boundary function that may receive untrusted input.
++  @attention The input is from FileSystem.
++
++  The File Set Descriptor is external input, so this routine will do basic
++  validation for File Set Descriptor and report status.
++
+   @param  This            Protocol instance pointer.
+   @param  InformationType Type of information to return in Buffer.
+   @param  BufferSize      On input size of buffer, on output amount of data in
+@@ -794,6 +801,10 @@ UdfGetInfo (
+         *String = *(UINT8 *)(OstaCompressed + Index) << 8;
+         Index++;
+       } else {
++        if (Index > ARRAY_SIZE (VolumeLabel)) {
++          return EFI_VOLUME_CORRUPTED;
++        }
++
+         *String = 0;
+       }
+ 
+@@ -813,7 +824,11 @@ UdfGetInfo (
+       String++;
+     }
+ 
+-    *String = L'\0';
++    Index = ((UINTN)String - (UINTN)VolumeLabel) / sizeof (CHAR16);
++    if (Index > ARRAY_SIZE (VolumeLabel) - 1) {
++      Index = ARRAY_SIZE (VolumeLabel) - 1;
++    }
++    VolumeLabel[Index] = L'\0';
+ 
+     FileSystemInfoLength = StrSize (VolumeLabel) +
+                            sizeof (EFI_FILE_SYSTEM_INFO);
+@@ -823,8 +838,11 @@ UdfGetInfo (
+     }
+ 
+     FileSystemInfo = (EFI_FILE_SYSTEM_INFO *)Buffer;
+-    StrCpyS (FileSystemInfo->VolumeLabel, ARRAY_SIZE (VolumeLabel),
+-             VolumeLabel);
++    StrCpyS (
++      FileSystemInfo->VolumeLabel,
++      (*BufferSize - OFFSET_OF (EFI_FILE_SYSTEM_INFO, VolumeLabel)) / sizeof (CHAR16),
++      VolumeLabel
++      );
+     Status = GetVolumeSize (
+       PrivFsData->BlockIo,
+       PrivFsData->DiskIo,
+diff --git a/MdeModulePkg/Universal/Disk/UdfDxe/FileSystemOperations.c b/MdeModulePkg/Universal/Disk/UdfDxe/FileSystemOperations.c
+index ecc1723..424f41c 100644
+--- a/MdeModulePkg/Universal/Disk/UdfDxe/FileSystemOperations.c
++++ b/MdeModulePkg/Universal/Disk/UdfDxe/FileSystemOperations.c
+@@ -2,6 +2,7 @@
+   Handle on-disk format and volume structures in UDF/ECMA-167 file systems.
+ 
+   Copyright (C) 2014-2017 Paulo Alcantara <pcacjr@zytor.com>
++  Copyright (c) 2018, Intel Corporation. All rights reserved.<BR>
+ 
+   This program and the accompanying materials are licensed and made available
+   under the terms and conditions of the BSD License which accompanies this
+@@ -1412,7 +1413,7 @@ InternalFindFile (
+         break;
+       }
+     } else {
+-      Status = GetFileNameFromFid (FileIdentifierDesc, FoundFileName);
++      Status = GetFileNameFromFid (FileIdentifierDesc, ARRAY_SIZE (FoundFileName), FoundFileName);
+       if (EFI_ERROR (Status)) {
+         break;
+       }
+@@ -1705,6 +1706,11 @@ FindFile (
+   while (*FilePath != L'\0') {
+     FileNamePointer = FileName;
+     while (*FilePath != L'\0' && *FilePath != L'\\') {
++      if ((((UINTN)FileNamePointer - (UINTN)FileName) / sizeof (CHAR16)) >=
++          (ARRAY_SIZE (FileName) - 1)) {
++        return EFI_NOT_FOUND;
++      }
++
+       *FileNamePointer++ = *FilePath++;
+     }
+ 
+@@ -1882,22 +1888,38 @@ ReadDirectoryEntry (
+   Get a filename (encoded in OSTA-compressed format) from a File Identifier
+   Descriptor on an UDF volume.
+ 
++  @attention This is boundary function that may receive untrusted input.
++  @attention The input is from FileSystem.
++
++  The File Identifier Descriptor is external input, so this routine will do
++  basic validation for File Identifier Descriptor and report status.
++
+   @param[in]   FileIdentifierDesc  File Identifier Descriptor pointer.
++  @param[in]   CharMax             The maximum number of FileName Unicode char,
++                                   including terminating null char.
+   @param[out]  FileName            Decoded filename.
+ 
+   @retval EFI_SUCCESS           Filename decoded and read.
+   @retval EFI_VOLUME_CORRUPTED  The file system structures are corrupted.
++  @retval EFI_BUFFER_TOO_SMALL  The string buffer FileName cannot hold the
++                                decoded filename.
+ **/
+ EFI_STATUS
+ GetFileNameFromFid (
+   IN   UDF_FILE_IDENTIFIER_DESCRIPTOR  *FileIdentifierDesc,
++  IN   UINTN                           CharMax,
+   OUT  CHAR16                          *FileName
+   )
+ {
+-  UINT8 *OstaCompressed;
+-  UINT8 CompressionId;
+-  UINT8 Length;
+-  UINTN Index;
++  UINT8  *OstaCompressed;
++  UINT8  CompressionId;
++  UINT8  Length;
++  UINTN  Index;
++  CHAR16 *FileNameBak;
++
++  if (CharMax == 0) {
++    return EFI_BUFFER_TOO_SMALL;
++  }
+ 
+   OstaCompressed =
+     (UINT8 *)(
+@@ -1910,10 +1932,22 @@ GetFileNameFromFid (
+     return EFI_VOLUME_CORRUPTED;
+   }
+ 
++  FileNameBak = FileName;
++
+   //
+   // Decode filename.
+   //
+   Length = FileIdentifierDesc->LengthOfFileIdentifier;
++  if (CompressionId == 16) {
++    if (((UINTN)Length >> 1) > CharMax) {
++      return EFI_BUFFER_TOO_SMALL;
++    }
++  } else {
++    if ((Length != 0) && ((UINTN)Length - 1 > CharMax)) {
++      return EFI_BUFFER_TOO_SMALL;
++    }
++  }
++
+   for (Index = 1; Index < Length; Index++) {
+     if (CompressionId == 16) {
+       *FileName = OstaCompressed[Index++] << 8;
+@@ -1928,7 +1962,11 @@ GetFileNameFromFid (
+     FileName++;
+   }
+ 
+-  *FileName = L'\0';
++  Index = ((UINTN)FileName - (UINTN)FileNameBak) / sizeof (CHAR16);
++  if (Index > CharMax - 1) {
++    Index = CharMax - 1;
++  }
++  FileNameBak[Index] = L'\0';
+ 
+   return EFI_SUCCESS;
+ }
+@@ -1936,6 +1974,12 @@ GetFileNameFromFid (
+ /**
+   Resolve a symlink file on an UDF volume.
+ 
++  @attention This is boundary function that may receive untrusted input.
++  @attention The input is from FileSystem.
++
++  The Path Component is external input, so this routine will do basic
++  validation for Path Component and report status.
++
+   @param[in]   BlockIo        BlockIo interface.
+   @param[in]   DiskIo         DiskIo interface.
+   @param[in]   Volume         UDF volume information structure.
+@@ -2054,6 +2098,9 @@ ResolveSymlink (
+                           Index) << 8;
+           Index++;
+         } else {
++          if (Index > ARRAY_SIZE (FileName)) {
++            return EFI_UNSUPPORTED;
++          }
+           *Char = 0;
+         }
+ 
+@@ -2064,7 +2111,11 @@ ResolveSymlink (
+         Char++;
+       }
+ 
+-      *Char = L'\0';
++      Index = ((UINTN)Char - (UINTN)FileName) / sizeof (CHAR16);
++      if (Index > ARRAY_SIZE (FileName) - 1) {
++        Index = ARRAY_SIZE (FileName) - 1;
++      }
++      FileName[Index] = L'\0';
+       break;
+     }
+ 
+diff --git a/MdeModulePkg/Universal/Disk/UdfDxe/Udf.h b/MdeModulePkg/Universal/Disk/UdfDxe/Udf.h
+index d441539..9b82441 100644
+--- a/MdeModulePkg/Universal/Disk/UdfDxe/Udf.h
++++ b/MdeModulePkg/Universal/Disk/UdfDxe/Udf.h
+@@ -2,6 +2,7 @@
+   UDF/ECMA-167 file system driver.
+ 
+   Copyright (C) 2014-2017 Paulo Alcantara <pcacjr@zytor.com>
++  Copyright (c) 2018, Intel Corporation. All rights reserved.<BR>
+ 
+   This program and the accompanying materials are licensed and made available
+   under the terms and conditions of the BSD License which accompanies this
+@@ -559,9 +560,16 @@ UdfSetPosition (
+ /**
+   Get information about a file.
+ 
++  @attention This is boundary function that may receive untrusted input.
++  @attention The input is from FileSystem.
++
++  The File Set Descriptor is external input, so this routine will do basic
++  validation for File Set Descriptor and report status.
++
+   @param  This            Protocol instance pointer.
+   @param  InformationType Type of information to return in Buffer.
+-  @param  BufferSize      On input size of buffer, on output amount of data in buffer.
++  @param  BufferSize      On input size of buffer, on output amount of data in
++                          buffer.
+   @param  Buffer          The buffer to return data.
+ 
+   @retval EFI_SUCCESS          Data was returned.
+@@ -571,7 +579,8 @@ UdfSetPosition (
+   @retval EFI_VOLUME_CORRUPTED The file system structures are corrupted.
+   @retval EFI_WRITE_PROTECTED  The device is write protected.
+   @retval EFI_ACCESS_DENIED    The file was open for read only.
+-  @retval EFI_BUFFER_TOO_SMALL Buffer was too small; required size returned in BufferSize.
++  @retval EFI_BUFFER_TOO_SMALL Buffer was too small; required size returned in
++                               BufferSize.
+ 
+ **/
+ EFI_STATUS
+@@ -769,21 +778,38 @@ ReadDirectoryEntry (
+   Get a filename (encoded in OSTA-compressed format) from a File Identifier
+   Descriptor on an UDF volume.
+ 
++  @attention This is boundary function that may receive untrusted input.
++  @attention The input is from FileSystem.
++
++  The File Identifier Descriptor is external input, so this routine will do
++  basic validation for File Identifier Descriptor and report status.
++
+   @param[in]   FileIdentifierDesc  File Identifier Descriptor pointer.
++  @param[in]   CharMax             The maximum number of FileName Unicode char,
++                                   including terminating null char.
+   @param[out]  FileName            Decoded filename.
+ 
+   @retval EFI_SUCCESS           Filename decoded and read.
+   @retval EFI_VOLUME_CORRUPTED  The file system structures are corrupted.
++  @retval EFI_BUFFER_TOO_SMALL  The string buffer FileName cannot hold the
++                                decoded filename.
+ **/
+ EFI_STATUS
+ GetFileNameFromFid (
+   IN   UDF_FILE_IDENTIFIER_DESCRIPTOR  *FileIdentifierDesc,
++  IN   UINTN                           CharMax,
+   OUT  CHAR16                          *FileName
+   );
+ 
+ /**
+   Resolve a symlink file on an UDF volume.
+ 
++  @attention This is boundary function that may receive untrusted input.
++  @attention The input is from FileSystem.
++
++  The Path Component is external input, so this routine will do basic
++  validation for Path Component and report status.
++
+   @param[in]   BlockIo        BlockIo interface.
+   @param[in]   DiskIo         DiskIo interface.
+   @param[in]   Volume         UDF volume information structure.
+-- 
+1.8.3.1
+

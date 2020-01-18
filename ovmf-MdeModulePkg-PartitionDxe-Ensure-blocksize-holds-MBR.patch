@@ -1,26 +1,26 @@
-From 582ce8009e286361be2468d48c0c7763edc62718 Mon Sep 17 00:00:00 2001
+From 29d5545ca1b9cefb7e813b65e36eb9efc192fbc0 Mon Sep 17 00:00:00 2001
 From: Laszlo Ersek <lersek@redhat.com>
-Date: Fri, 1 Mar 2019 12:38:19 +0100
-Subject: [PATCH 2/3] MdeModulePkg/PartitionDxe: Ensure blocksize holds MBR
+Date: Fri, 1 Mar 2019 13:16:46 +0100
+Subject: [PATCH 08/13] MdeModulePkg/PartitionDxe: Ensure blocksize holds MBR
  (CVE-2018-12180)
 
-Message-id: <20190301113820.13948-3-lersek@redhat.com>
-Patchwork-id: 84753
-O-Subject:  [RHEL-7.6.z ovmf PATCH 2/3] MdeModulePkg/PartitionDxe: Ensure
-	blocksize holds MBR (CVE-2018-12180)
-Bugzilla: 1684006
+Message-id: <20190301121647.16026-2-lersek@redhat.com>
+Patchwork-id: 84756
+O-Subject:  [RHEL-7.7 ovmf PATCH 1/2] MdeModulePkg/PartitionDxe: Ensure blocksize
+	holds MBR (CVE-2018-12180)
+Bugzilla: 1684007
 Acked-by: Thomas Huth <thuth@redhat.com>
 Acked-by: Vitaly Kuznetsov <vkuznets@redhat.com>
 
 From: Hao Wu <hao.a.wu@intel.com>
 
---v-- RHEL-7.6 note --v--
+--v-- RHEL-7.7 note --v--
 
 Trivial conflicts resolved in "Gpt.c" and "Mbr.c": up-stream, the Intel
 copyright notice got meanwhile extended to 2018, in commit d1102dba7210
 ("MdeModulePkg: Clean up source files", 2018-06-28).
 
---^-- RHEL-7.6 note --^--
+--^-- RHEL-7.7 note --^--
 
 REF:https://bugzilla.tianocore.org/show_bug.cgi?id=1134
 

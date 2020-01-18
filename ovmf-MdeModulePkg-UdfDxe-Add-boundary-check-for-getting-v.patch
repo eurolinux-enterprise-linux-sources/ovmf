@@ -1,0 +1,103 @@
+From 288997968e9c6352b09930c23fc05f53e3bc0dad Mon Sep 17 00:00:00 2001
+From: Laszlo Ersek <lersek@redhat.com>
+Date: Fri, 22 Mar 2019 21:53:23 +0100
+Subject: [PATCH 7/8] MdeModulePkg/UdfDxe: Add boundary check for getting
+ volume (free) size
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Message-id: <20190322205323.17693-6-lersek@redhat.com>
+Patchwork-id: 85134
+O-Subject:  [RHEL-7.7 ovmf PATCH 5/5] MdeModulePkg/UdfDxe: Add boundary check for
+	getting volume (free) size
+Bugzilla: 1691647
+Acked-by: Philippe Mathieu-Daudé <philmd@redhat.com>
+Acked-by: Vitaly Kuznetsov <vkuznets@redhat.com>
+
+From: Hao Wu <hao.a.wu@intel.com>
+
+REF:https://bugzilla.tianocore.org/show_bug.cgi?id=828
+
+Within GetVolumeSize():
+
+The boundary check will validate the 'NumberOfPartitions' field of a
+Logical Volume Integrity Descriptor matches the data within the relating
+Logical Volume Descriptor.
+
+Cc: Ruiyu Ni <ruiyu.ni@intel.com>
+Cc: Jiewen Yao <jiewen.yao@intel.com>
+Contributed-under: TianoCore Contribution Agreement 1.1
+Signed-off-by: Hao Wu <hao.a.wu@intel.com>
+Reviewed-by: Paulo Alcantara <palcantara@suse.de>
+Acked-by: Star Zeng <star.zeng@intel.com>
+(cherry picked from commit 3b30351b75d70ea65701ac999875fbb81a89a5ca)
+Signed-off-by: Laszlo Ersek <lersek@redhat.com>
+---
+ .../Universal/Disk/UdfDxe/FileSystemOperations.c        | 17 ++++++++++++++++-
+ MdeModulePkg/Universal/Disk/UdfDxe/Udf.h                |  7 +++++++
+ 2 files changed, 23 insertions(+), 1 deletion(-)
+
+diff --git a/MdeModulePkg/Universal/Disk/UdfDxe/FileSystemOperations.c b/MdeModulePkg/Universal/Disk/UdfDxe/FileSystemOperations.c
+index 1aefed8..ae19a42 100644
+--- a/MdeModulePkg/Universal/Disk/UdfDxe/FileSystemOperations.c
++++ b/MdeModulePkg/Universal/Disk/UdfDxe/FileSystemOperations.c
+@@ -2451,6 +2451,13 @@ SetFileInfo (
+ /**
+   Get volume and free space size information of an UDF volume.
+ 
++  @attention This is boundary function that may receive untrusted input.
++  @attention The input is from FileSystem.
++
++  The Logical Volume Descriptor and the Logical Volume Integrity Descriptor are
++  external inputs, so this routine will do basic validation for both descriptors
++  and report status.
++
+   @param[in]   BlockIo        BlockIo interface.
+   @param[in]   DiskIo         DiskIo interface.
+   @param[in]   Volume         UDF volume information structure.
+@@ -2489,7 +2496,8 @@ GetVolumeSize (
+ 
+   ExtentAd = &LogicalVolDesc->IntegritySequenceExtent;
+ 
+-  if (ExtentAd->ExtentLength == 0) {
++  if ((ExtentAd->ExtentLength == 0) ||
++      (ExtentAd->ExtentLength < sizeof (UDF_LOGICAL_VOLUME_INTEGRITY))) {
+     return EFI_VOLUME_CORRUPTED;
+   }
+ 
+@@ -2529,6 +2537,13 @@ GetVolumeSize (
+     goto Out_Free;
+   }
+ 
++  if ((LogicalVolInt->NumberOfPartitions > MAX_UINT32 / sizeof (UINT32) / 2) ||
++      (LogicalVolInt->NumberOfPartitions * sizeof (UINT32) * 2 >
++       ExtentAd->ExtentLength - sizeof (UDF_LOGICAL_VOLUME_INTEGRITY))) {
++    Status = EFI_VOLUME_CORRUPTED;
++    goto Out_Free;
++  }
++
+   *VolumeSize = 0;
+   *FreeSpaceSize = 0;
+ 
+diff --git a/MdeModulePkg/Universal/Disk/UdfDxe/Udf.h b/MdeModulePkg/Universal/Disk/UdfDxe/Udf.h
+index 9b82441..b054c62 100644
+--- a/MdeModulePkg/Universal/Disk/UdfDxe/Udf.h
++++ b/MdeModulePkg/Universal/Disk/UdfDxe/Udf.h
+@@ -903,6 +903,13 @@ SetFileInfo (
+ /**
+   Get volume and free space size information of an UDF volume.
+ 
++  @attention This is boundary function that may receive untrusted input.
++  @attention The input is from FileSystem.
++
++  The Logical Volume Descriptor and the Logical Volume Integrity Descriptor are
++  external inputs, so this routine will do basic validation for both descriptors
++  and report status.
++
+   @param[in]   BlockIo        BlockIo interface.
+   @param[in]   DiskIo         DiskIo interface.
+   @param[in]   Volume         UDF volume information structure.
+-- 
+1.8.3.1
+

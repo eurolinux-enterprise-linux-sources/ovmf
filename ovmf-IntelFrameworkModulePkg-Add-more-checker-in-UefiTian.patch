@@ -1,0 +1,128 @@
+From c48d7ac53b4b387fc70a3803e38d30b50513f90b Mon Sep 17 00:00:00 2001
+From: Philippe Mathieu-Daude <philmd@redhat.com>
+Date: Wed, 13 Feb 2019 09:50:46 +0100
+Subject: [PATCH 03/13] IntelFrameworkModulePkg: Add more checker in
+ UefiTianoDecompressLib (CVE FIX)
+
+Message-id: <20190213085050.20766-4-philmd@redhat.com>
+Patchwork-id: 84483
+O-Subject:  [RHEL-7.7 ovmf PATCH v3 3/7] IntelFrameworkModulePkg: Add more
+	checker in UefiTianoDecompressLib (CVE FIX)
+Bugzilla: 1666586
+Acked-by: Laszlo Ersek <lersek@redhat.com>
+Acked-by: Vitaly Kuznetsov <vkuznets@redhat.com>
+
+From: Laszlo Ersek <lersek@redhat.com>
+
+From: Liming Gao <liming.gao@intel.com>
+
+--v-- RHEL7 note start --v--
+
+Unfortunately, the upstream patch series was not structured according to
+the CVE reports. This patch contributes to fixing:
+
+- CVE-2017-5733
+- CVE-2017-5734
+- CVE-2017-5735
+
+but not CVE-2017-5731 or CVE-2017-5732 (contrarily to the upstream commit
+message). The best I could achieve up-stream was to get the "CVE FIX"
+expression into the subject, and a whole-sale dump of the CVEs into the
+body. I had not been invited to the original (off-list, embargoed)
+analysis and review.
+
+The trivial context difference (whitespace) is due to RHEL8 lacking
+upstream commit 0a6f48249a60 ("IntelFrameworkModulePkg: Clean up source
+files", 2018-06-28). I've considered backporting that (since it only
+cleans up whitespace). However, the diffstat on that commit convinced me
+otherwise: "246 files changed, 4067 insertions(+), 4067 deletions(-)".
+I've decided not to do a partial backport of that (i.e. just for
+"BaseUefiTianoCustomDecompressLib.c").
+
+--^-- RHEL7 note end --^--
+
+Fix CVE-2017-5731,CVE-2017-5732,CVE-2017-5733,CVE-2017-5734,CVE-2017-5735
+https://bugzilla.tianocore.org/show_bug.cgi?id=686
+To make sure the valid buffer be accessed only.
+
+Contributed-under: TianoCore Contribution Agreement 1.1
+Signed-off-by: Holtsclaw Brent <brent.holtsclaw@intel.com>
+Signed-off-by: Liming Gao <liming.gao@intel.com>
+Reviewed-by: Star Zeng <star.zeng@intel.com>
+Acked-by: Laszlo Ersek <lersek@redhat.com>
+(cherry picked from commit 684db6da64bc7b5faee4e1174e801c245f563b5c)
+Signed-off-by: Laszlo Ersek <lersek@redhat.com>
+(cherry picked from commit 8358e53013fc62c9556598ad842d233906de00ef)
+Signed-off-by: Philippe Mathieu-Daude <philmd@redhat.com>
+---
+ .../BaseUefiTianoCustomDecompressLib.c                   | 16 ++++++++++++++--
+ 1 file changed, 14 insertions(+), 2 deletions(-)
+
+diff --git a/IntelFrameworkModulePkg/Library/BaseUefiTianoCustomDecompressLib/BaseUefiTianoCustomDecompressLib.c b/IntelFrameworkModulePkg/Library/BaseUefiTianoCustomDecompressLib/BaseUefiTianoCustomDecompressLib.c
+index cb009e7..9b00166 100644
+--- a/IntelFrameworkModulePkg/Library/BaseUefiTianoCustomDecompressLib/BaseUefiTianoCustomDecompressLib.c
++++ b/IntelFrameworkModulePkg/Library/BaseUefiTianoCustomDecompressLib/BaseUefiTianoCustomDecompressLib.c
+@@ -143,6 +143,7 @@ MakeTable (
+   UINT16  Mask;
+   UINT16  WordOfStart;
+   UINT16  WordOfCount;
++  UINT16  MaxTableLength;
+ 
+   //
+   // The maximum mapping table width supported by this internal
+@@ -155,6 +156,9 @@ MakeTable (
+   }
+ 
+   for (Index = 0; Index < NumOfChar; Index++) {
++    if (BitLen[Index] > 16) {
++      return (UINT16) BAD_TABLE;
++    }
+     Count[BitLen[Index]]++;
+   }
+   
+@@ -196,6 +200,7 @@ MakeTable (
+ 
+   Avail = NumOfChar;
+   Mask  = (UINT16) (1U << (15 - TableBits));
++  MaxTableLength = (UINT16) (1U << TableBits);
+ 
+   for (Char = 0; Char < NumOfChar; Char++) {
+ 
+@@ -209,6 +214,9 @@ MakeTable (
+     if (Len <= TableBits) {
+ 
+       for (Index = Start[Len]; Index < NextCode; Index++) {
++        if (Index >= MaxTableLength) {
++          return (UINT16) BAD_TABLE;
++        }
+         Table[Index] = Char;
+       }
+ 
+@@ -615,10 +623,14 @@ Decode (
+       //
+       BytesRemain--;
+       while ((INT16) (BytesRemain) >= 0) {
+-        Sd->mDstBase[Sd->mOutBuf++] = Sd->mDstBase[DataIdx++];
+         if (Sd->mOutBuf >= Sd->mOrigSize) {
+           goto Done ;
+         }
++        if (DataIdx >= Sd->mOrigSize) {
++          Sd->mBadTableFlag = (UINT16) BAD_TABLE;
++          goto Done ;
++        }
++        Sd->mDstBase[Sd->mOutBuf++] = Sd->mDstBase[DataIdx++];
+ 
+         BytesRemain--;
+       }
+@@ -688,7 +700,7 @@ UefiDecompressGetInfo (
+   }
+ 
+   CompressedSize   = ReadUnaligned32 ((UINT32 *)Source);
+-  if (SourceSize < (CompressedSize + 8)) {
++  if (SourceSize < (CompressedSize + 8) || (CompressedSize + 8) < 8) {
+     return RETURN_INVALID_PARAMETER;
+   }
+ 
+-- 
+1.8.3.1
+

@@ -1,0 +1,57 @@
+From adfd3101494f52d71cbd8d15be9146e7570e6397 Mon Sep 17 00:00:00 2001
+From: Laszlo Ersek <lersek@redhat.com>
+Date: Fri, 22 Mar 2019 21:53:22 +0100
+Subject: [PATCH 6/8] MdeModulePkg/UdfDxe: Add boundary check for
+ ComponentIdentifier decode
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Message-id: <20190322205323.17693-5-lersek@redhat.com>
+Patchwork-id: 85133
+O-Subject:  [RHEL-7.7 ovmf PATCH 4/5] MdeModulePkg/UdfDxe: Add boundary check for
+	ComponentIdentifier decode
+Bugzilla: 1691647
+Acked-by: Philippe Mathieu-Daudé <philmd@redhat.com>
+Acked-by: Vitaly Kuznetsov <vkuznets@redhat.com>
+
+From: Hao Wu <hao.a.wu@intel.com>
+
+REF:https://bugzilla.tianocore.org/show_bug.cgi?id=828
+
+Within ResolveSymlink():
+
+The boundary check will validate the 'LengthofComponentIdentifier' field
+of a Path Component matches the data within the relating (Extended) File
+Entry.
+
+Cc: Ruiyu Ni <ruiyu.ni@intel.com>
+Cc: Jiewen Yao <jiewen.yao@intel.com>
+Contributed-under: TianoCore Contribution Agreement 1.1
+Signed-off-by: Hao Wu <hao.a.wu@intel.com>
+Reviewed-by: Paulo Alcantara <palcantara@suse.de>
+Acked-by: Star Zeng <star.zeng@intel.com>
+(cherry picked from commit 89f75aa04a97293a8ed9db2a90851a5053730cf5)
+Signed-off-by: Laszlo Ersek <lersek@redhat.com>
+---
+ MdeModulePkg/Universal/Disk/UdfDxe/FileSystemOperations.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/MdeModulePkg/Universal/Disk/UdfDxe/FileSystemOperations.c b/MdeModulePkg/Universal/Disk/UdfDxe/FileSystemOperations.c
+index 0012075..1aefed8 100644
+--- a/MdeModulePkg/Universal/Disk/UdfDxe/FileSystemOperations.c
++++ b/MdeModulePkg/Universal/Disk/UdfDxe/FileSystemOperations.c
+@@ -2137,6 +2137,10 @@ ResolveSymlink (
+         return EFI_VOLUME_CORRUPTED;
+       }
+ 
++      if ((UINTN)PathComp->ComponentIdentifier + PathCompLength > (UINTN)EndData) {
++        return EFI_VOLUME_CORRUPTED;
++      }
++
+       Char = FileName;
+       for (Index = 1; Index < PathCompLength; Index++) {
+         if (CompressionId == 16) {
+-- 
+1.8.3.1
+

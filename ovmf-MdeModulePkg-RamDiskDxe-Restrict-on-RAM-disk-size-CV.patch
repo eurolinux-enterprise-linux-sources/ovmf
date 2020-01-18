@@ -1,14 +1,14 @@
-From 9d78bac116d939d3a833150747e29e861b75eedc Mon Sep 17 00:00:00 2001
+From 8104f654744067eca1cc96d2156742dc1155b5b7 Mon Sep 17 00:00:00 2001
 From: Laszlo Ersek <lersek@redhat.com>
-Date: Fri, 1 Mar 2019 12:38:20 +0100
-Subject: [PATCH 3/3] MdeModulePkg/RamDiskDxe: Restrict on RAM disk size
+Date: Fri, 1 Mar 2019 13:16:47 +0100
+Subject: [PATCH 09/13] MdeModulePkg/RamDiskDxe: Restrict on RAM disk size
  (CVE-2018-12180)
 
-Message-id: <20190301113820.13948-4-lersek@redhat.com>
-Patchwork-id: 84754
-O-Subject:  [RHEL-7.6.z ovmf PATCH 3/3] MdeModulePkg/RamDiskDxe: Restrict on RAM
+Message-id: <20190301121647.16026-3-lersek@redhat.com>
+Patchwork-id: 84757
+O-Subject:  [RHEL-7.7 ovmf PATCH 2/2] MdeModulePkg/RamDiskDxe: Restrict on RAM
 	disk size (CVE-2018-12180)
-Bugzilla: 1684006
+Bugzilla: 1684007
 Acked-by: Thomas Huth <thuth@redhat.com>
 Acked-by: Vitaly Kuznetsov <vkuznets@redhat.com>
 

@@ -1,0 +1,97 @@
+From 5c43edaf8f41ad18bc66c29fea9b039488d858c8 Mon Sep 17 00:00:00 2001
+From: Laszlo Ersek <lersek@redhat.com>
+Date: Fri, 22 Mar 2019 21:53:19 +0100
+Subject: [PATCH 3/8] MdeModulePkg/PartitionDxe: Add check for underlying
+ device block size
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Message-id: <20190322205323.17693-2-lersek@redhat.com>
+Patchwork-id: 85131
+O-Subject:  [RHEL-7.7 ovmf PATCH 1/5] MdeModulePkg/PartitionDxe: Add check for
+	underlying device block size
+Bugzilla: 1691647
+Acked-by: Philippe Mathieu-Daudé <philmd@redhat.com>
+Acked-by: Vitaly Kuznetsov <vkuznets@redhat.com>
+
+From: Hao Wu <hao.a.wu@intel.com>
+
+REF:https://bugzilla.tianocore.org/show_bug.cgi?id=828
+
+Within FindAnchorVolumeDescriptorPointer():
+
+Add a check for the underlying device block size to ensure it is greater
+than the size of an Anchor Volume Descriptor Pointer.
+
+Cc: Ruiyu Ni <ruiyu.ni@intel.com>
+Cc: Jiewen Yao <jiewen.yao@intel.com>
+Contributed-under: TianoCore Contribution Agreement 1.1
+Signed-off-by: Hao Wu <hao.a.wu@intel.com>
+Reviewed-by: Paulo Alcantara <palcantara@suse.de>
+Acked-by: Star Zeng <star.zeng@intel.com>
+(cherry picked from commit 4df8f5bfa28b8b881e506437e8f08d92c1a00370)
+Signed-off-by: Laszlo Ersek <lersek@redhat.com>
+---
+ MdeModulePkg/Universal/Disk/PartitionDxe/Udf.c | 29 ++++++++++++++++++++++++++
+ 1 file changed, 29 insertions(+)
+
+diff --git a/MdeModulePkg/Universal/Disk/PartitionDxe/Udf.c b/MdeModulePkg/Universal/Disk/PartitionDxe/Udf.c
+index 83bd174..49c56f6 100644
+--- a/MdeModulePkg/Universal/Disk/PartitionDxe/Udf.c
++++ b/MdeModulePkg/Universal/Disk/PartitionDxe/Udf.c
+@@ -1,8 +1,17 @@
+ /** @file
+   Scan for an UDF file system on a formatted media.
+ 
++  Caution: This file requires additional review when modified.
++  This driver will have external input - CD/DVD media.
++  This external input must be validated carefully to avoid security issue like
++  buffer overflow, integer overflow.
++
++  FindUdfFileSystem() routine will consume the media properties and do basic
++  validation.
++
+   Copyright (c) 2018 Qualcomm Datacenter Technologies, Inc.
+   Copyright (C) 2014-2017 Paulo Alcantara <pcacjr@zytor.com>
++  Copyright (c) 2018, Intel Corporation. All rights reserved.<BR>
+ 
+   This program and the accompanying materials are licensed and made available
+   under the terms and conditions of the BSD License which accompanies this
+@@ -102,6 +111,20 @@ FindAnchorVolumeDescriptorPointer (
+   AvdpsCount = 0;
+ 
+   //
++  // Check if the block size of the underlying media can hold the data of an
++  // Anchor Volume Descriptor Pointer
++  //
++  if (BlockSize < sizeof (UDF_ANCHOR_VOLUME_DESCRIPTOR_POINTER)) {
++    DEBUG ((
++      DEBUG_ERROR,
++      "%a: Media block size 0x%x unable to hold an AVDP.\n",
++      __FUNCTION__,
++      BlockSize
++      ));
++    return EFI_UNSUPPORTED;
++  }
++
++  //
+   // Find AVDP at block 256
+   //
+   Status = DiskIo->ReadDisk (
+@@ -598,6 +621,12 @@ Out_Free:
+ /**
+   Find a supported UDF file system in block device.
+ 
++  @attention This is boundary function that may receive untrusted input.
++  @attention The input is from Partition.
++
++  The CD/DVD media is the external input, so this routine will do basic
++  validation for the media.
++
+   @param[in]  BlockIo             BlockIo interface.
+   @param[in]  DiskIo              DiskIo interface.
+   @param[out] StartingLBA         UDF file system starting LBA.
+-- 
+1.8.3.1
+

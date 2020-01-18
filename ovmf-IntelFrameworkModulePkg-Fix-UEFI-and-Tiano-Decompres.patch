@@ -1,0 +1,58 @@
+From e63a98333b858e287b0e88ff0e06bef5d46c635f Mon Sep 17 00:00:00 2001
+From: Philippe Mathieu-Daude <philmd@redhat.com>
+Date: Wed, 13 Feb 2019 09:50:50 +0100
+Subject: [PATCH 07/13] IntelFrameworkModulePkg: Fix UEFI and Tiano
+ Decompression logic issue
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Message-id: <20190213085050.20766-8-philmd@redhat.com>
+Patchwork-id: 84482
+O-Subject:  [RHEL-7.7 ovmf PATCH v3 7/7] IntelFrameworkModulePkg: Fix UEFI and
+	Tiano Decompression logic issue
+Bugzilla: 1666586
+Acked-by: Laszlo Ersek <lersek@redhat.com>
+Acked-by: Vitaly Kuznetsov <vkuznets@redhat.com>
+
+From: Philippe Mathieu-Daudé <philmd@redhat.com>
+
+From: Liming Gao <liming.gao@intel.com>
+
+https://bugzilla.tianocore.org/show_bug.cgi?id=1317
+
+This is a regression issue caused by 684db6da64bc7b5faee4e1174e801c245f563b5c.
+In Decode() function, once mOutBuf is fully filled, Decode() should return.
+Current logic misses the checker of mOutBuf after while() loop.
+
+Contributed-under: TianoCore Contribution Agreement 1.1
+Signed-off-by: Liming Gao <liming.gao@intel.com>
+Reviewed-by: Yonghong Zhu <yonghong.zhu@intel.com>
+(cherry picked from commit ade71c52a49d659b20c0b433fb11ddb4f4f543c4)
+Signed-off-by: Philippe Mathieu-Daudé <philmd@redhat.com>
+(cherry picked from commit 601458a0a87bf4169d1f0c81c0bb454d22abe8f0)
+Signed-off-by: Philippe Mathieu-Daude <philmd@redhat.com>
+---
+ .../BaseUefiTianoCustomDecompressLib.c                              | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/IntelFrameworkModulePkg/Library/BaseUefiTianoCustomDecompressLib/BaseUefiTianoCustomDecompressLib.c b/IntelFrameworkModulePkg/Library/BaseUefiTianoCustomDecompressLib/BaseUefiTianoCustomDecompressLib.c
+index 9b00166..e34bf4b 100644
+--- a/IntelFrameworkModulePkg/Library/BaseUefiTianoCustomDecompressLib/BaseUefiTianoCustomDecompressLib.c
++++ b/IntelFrameworkModulePkg/Library/BaseUefiTianoCustomDecompressLib/BaseUefiTianoCustomDecompressLib.c
+@@ -634,6 +634,12 @@ Decode (
+ 
+         BytesRemain--;
+       }
++      //
++      // Once mOutBuf is fully filled, directly return
++      //
++      if (Sd->mOutBuf >= Sd->mOrigSize) {
++        goto Done ;
++      }
+     }
+   }
+ 
+-- 
+1.8.3.1
+

@@ -1,0 +1,94 @@
+From 461390a9ced1986f752b2e64f36f3deee982eb6d Mon Sep 17 00:00:00 2001
+From: Philippe Mathieu-Daude <philmd@redhat.com>
+Date: Wed, 13 Feb 2019 09:50:48 +0100
+Subject: [PATCH 05/13] BaseTools: Fix UEFI and Tiano Decompression logic issue
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Message-id: <20190213085050.20766-6-philmd@redhat.com>
+Patchwork-id: 84484
+O-Subject:  [RHEL-7.7 ovmf PATCH v3 5/7] BaseTools: Fix UEFI and Tiano
+	Decompression logic issue
+Bugzilla: 1666586
+Acked-by: Laszlo Ersek <lersek@redhat.com>
+Acked-by: Vitaly Kuznetsov <vkuznets@redhat.com>
+
+From: Philippe Mathieu-Daudé <philmd@redhat.com>
+
+From: Liming Gao <liming.gao@intel.com>
+
+--v-- RHEL7 note start --v--
+
+While reviewing the RHEL8 original of this backport, Laszlo had to look
+at the "BaseTools/Source/C/TianoCompress/TianoCompress.c" hunk for a
+while longer, due to commit 472eb3b89682 missing down-stream, which he
+remembered from downstream commit 29c394f110b1.
+
+However, this hunk affects the Decode() function, which is not affected
+by the upstream-only "UefiCompress method", and also not affected by the
+related upstream-only Decompress()->TDecompress() rename. Decode() --
+i.e. the function being patched -- is called from Decompress() /
+TDecompress().
+
+Therefore, the "git backport-diff" report in the blurb which marks this
+backport patch "identical", is credible.
+
+--^-- RHEL7 note end --^--
+
+https://bugzilla.tianocore.org/show_bug.cgi?id=1317
+
+This is a regression issue caused by 041d89bc0f0119df37a5fce1d0f16495ff905089.
+In Decode() function, once mOutBuf is fully filled, Decode() should return.
+Current logic misses the checker of mOutBuf after while() loop.
+
+Contributed-under: TianoCore Contribution Agreement 1.1
+Signed-off-by: Liming Gao <liming.gao@intel.com>
+Cc: Yonghong Zhu <yonghong.zhu@intel.com>
+Reviewed-by: Yonghong Zhu <yonghong.zhu@intel.com>
+(cherry picked from commit 5e45a1fdcfbf9b2b389122eb97475148594625f8)
+Signed-off-by: Philippe Mathieu-Daudé <philmd@redhat.com>
+(cherry picked from commit 115cf260ac54a6793a184227d6ae6bfe3da74a56)
+Signed-off-by: Philippe Mathieu-Daude <philmd@redhat.com>
+---
+ BaseTools/Source/C/Common/Decompress.c           | 6 ++++++
+ BaseTools/Source/C/TianoCompress/TianoCompress.c | 6 ++++++
+ 2 files changed, 12 insertions(+)
+
+diff --git a/BaseTools/Source/C/Common/Decompress.c b/BaseTools/Source/C/Common/Decompress.c
+index bdc10f5..af76f67 100644
+--- a/BaseTools/Source/C/Common/Decompress.c
++++ b/BaseTools/Source/C/Common/Decompress.c
+@@ -662,6 +662,12 @@ Returns: (VOID)
+ 
+         BytesRemain--;
+       }
++      //
++      // Once mOutBuf is fully filled, directly return
++      //
++      if (Sd->mOutBuf >= Sd->mOrigSize) {
++        return ;
++      }
+     }
+   }
+ 
+diff --git a/BaseTools/Source/C/TianoCompress/TianoCompress.c b/BaseTools/Source/C/TianoCompress/TianoCompress.c
+index d07fd9e..369f7b3 100644
+--- a/BaseTools/Source/C/TianoCompress/TianoCompress.c
++++ b/BaseTools/Source/C/TianoCompress/TianoCompress.c
+@@ -2649,6 +2649,12 @@ Returns: (VOID)
+ 
+         BytesRemain--;
+       }
++      //
++      // Once mOutBuf is fully filled, directly return
++      //
++      if (Sd->mOutBuf >= Sd->mOrigSize) {
++        goto Done ;
++      }
+     }
+   }
+ 
+-- 
+1.8.3.1
+

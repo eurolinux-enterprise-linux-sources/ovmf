@@ -1,0 +1,156 @@
+From 8a7cd4ba31848171f596a1eb1df0bc06633d3276 Mon Sep 17 00:00:00 2001
+From: Laszlo Ersek <lersek@redhat.com>
+Date: Fri, 22 Mar 2019 21:53:21 +0100
+Subject: [PATCH 5/8] MdeModulePkg/UdfDxe: Add boundary check the read of
+ FE/EFE
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Message-id: <20190322205323.17693-4-lersek@redhat.com>
+Patchwork-id: 85130
+O-Subject:  [RHEL-7.7 ovmf PATCH 3/5] MdeModulePkg/UdfDxe: Add boundary check the
+	read of FE/EFE
+Bugzilla: 1691647
+Acked-by: Philippe Mathieu-Daudé <philmd@redhat.com>
+Acked-by: Vitaly Kuznetsov <vkuznets@redhat.com>
+
+From: Hao Wu <hao.a.wu@intel.com>
+
+REF:https://bugzilla.tianocore.org/show_bug.cgi?id=828
+
+Within ReadFile():
+
+Add checks to ensure that when getting the raw data or the Allocation
+Descriptors' data from a FE/EFE, it will not consume data beyond the
+size of a FE/EFE.
+
+Cc: Ruiyu Ni <ruiyu.ni@intel.com>
+Cc: Jiewen Yao <jiewen.yao@intel.com>
+Contributed-under: TianoCore Contribution Agreement 1.1
+Signed-off-by: Hao Wu <hao.a.wu@intel.com>
+Reviewed-by: Paulo Alcantara <palcantara@suse.de>
+Acked-by: Star Zeng <star.zeng@intel.com>
+(cherry picked from commit 5c0748f43f4e1cc15fdd0be64a764eacd7df92f6)
+Signed-off-by: Laszlo Ersek <lersek@redhat.com>
+---
+ .../Universal/Disk/UdfDxe/FileSystemOperations.c   | 54 ++++++++++++++++++++--
+ 1 file changed, 50 insertions(+), 4 deletions(-)
+
+diff --git a/MdeModulePkg/Universal/Disk/UdfDxe/FileSystemOperations.c b/MdeModulePkg/Universal/Disk/UdfDxe/FileSystemOperations.c
+index 424f41c..0012075 100644
+--- a/MdeModulePkg/Universal/Disk/UdfDxe/FileSystemOperations.c
++++ b/MdeModulePkg/Universal/Disk/UdfDxe/FileSystemOperations.c
+@@ -504,15 +504,27 @@ DuplicateFe (
+ 
+   NOTE: The FE/EFE can be thought it was an inode.
+ 
++  @attention This is boundary function that may receive untrusted input.
++  @attention The input is from FileSystem.
++
++  The (Extended) File Entry is external input, so this routine will do basic
++  validation for (Extended) File Entry and report status.
++
+   @param[in]  FileEntryData       (Extended) File Entry pointer.
++  @param[in]  FileEntrySize       Size of the (Extended) File Entry specified
++                                  by FileEntryData.
+   @param[out] Data                Buffer contains the raw data of a given
+                                   (Extended) File Entry.
+   @param[out] Length              Length of the data in Buffer.
+ 
++  @retval EFI_SUCCESS             Raw data and size of the FE/EFE was read.
++  @retval EFI_VOLUME_CORRUPTED    The file system structures are corrupted.
++
+ **/
+-VOID
++EFI_STATUS
+ GetFileEntryData (
+   IN   VOID    *FileEntryData,
++  IN   UINTN   FileEntrySize,
+   OUT  VOID    **Data,
+   OUT  UINT64  *Length
+   )
+@@ -536,20 +548,40 @@ GetFileEntryData (
+     *Data    = (VOID *)((UINT8 *)FileEntry->Data +
+                         FileEntry->LengthOfExtendedAttributes);
+   }
++
++  if ((*Length > FileEntrySize) ||
++      ((UINTN)FileEntryData > (UINTN)(*Data)) ||
++      ((UINTN)(*Data) - (UINTN)FileEntryData > FileEntrySize - *Length)) {
++    return EFI_VOLUME_CORRUPTED;
++  }
++  return EFI_SUCCESS;
+ }
+ 
+ /**
+   Get Allocation Descriptors' data information from a given FE/EFE.
+ 
++  @attention This is boundary function that may receive untrusted input.
++  @attention The input is from FileSystem.
++
++  The (Extended) File Entry is external input, so this routine will do basic
++  validation for (Extended) File Entry and report status.
++
+   @param[in]  FileEntryData       (Extended) File Entry pointer.
++  @param[in]  FileEntrySize       Size of the (Extended) File Entry specified
++                                  by FileEntryData.
+   @param[out] AdsData             Buffer contains the Allocation Descriptors'
+                                   data from a given FE/EFE.
+   @param[out] Length              Length of the data in AdsData.
+ 
++  @retval EFI_SUCCESS             The data and size of Allocation Descriptors
++                                  were read from the FE/EFE.
++  @retval EFI_VOLUME_CORRUPTED    The file system structures are corrupted.
++
+ **/
+-VOID
++EFI_STATUS
+ GetAdsInformation (
+   IN   VOID    *FileEntryData,
++  IN   UINTN   FileEntrySize,
+   OUT  VOID    **AdsData,
+   OUT  UINT64  *Length
+   )
+@@ -573,6 +605,13 @@ GetAdsInformation (
+     *AdsData = (VOID *)((UINT8 *)FileEntry->Data +
+                         FileEntry->LengthOfExtendedAttributes);
+   }
++
++  if ((*Length > FileEntrySize) ||
++      ((UINTN)FileEntryData > (UINTN)(*AdsData)) ||
++      ((UINTN)(*AdsData) - (UINTN)FileEntryData > FileEntrySize - *Length)) {
++    return EFI_VOLUME_CORRUPTED;
++  }
++  return EFI_SUCCESS;
+ }
+ 
+ /**
+@@ -1066,7 +1105,10 @@ ReadFile (
+     //
+     // There are no extents for this FE/EFE. All data is inline.
+     //
+-    GetFileEntryData (FileEntryData, &Data, &Length);
++    Status = GetFileEntryData (FileEntryData, Volume->FileEntrySize, &Data, &Length);
++    if (EFI_ERROR (Status)) {
++      return Status;
++    }
+ 
+     if (ReadFileInfo->Flags == ReadFileGetFileSize) {
+       ReadFileInfo->ReadLength = Length;
+@@ -1110,7 +1152,11 @@ ReadFile (
+     // This FE/EFE contains a run of Allocation Descriptors. Get data + size
+     // for start reading them out.
+     //
+-    GetAdsInformation (FileEntryData, &Data, &Length);
++    Status = GetAdsInformation (FileEntryData, Volume->FileEntrySize, &Data, &Length);
++    if (EFI_ERROR (Status)) {
++      return Status;
++    }
++
+     AdOffset = 0;
+ 
+     for (;;) {
+-- 
+1.8.3.1
+

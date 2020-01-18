@@ -1,0 +1,66 @@
+From 44941e738b975e52a6494cfd9f71db5ad3f411b8 Mon Sep 17 00:00:00 2001
+From: Laszlo Ersek <lersek@redhat.com>
+Date: Fri, 22 Mar 2019 17:39:36 +0100
+Subject: [PATCH 2/8] MdeModulePkg/HiiImage: Fix stack overflow when corrupted
+ BMP is parsed (CVE-2018-12181)
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Message-id: <20190322163936.10835-3-lersek@redhat.com>
+Patchwork-id: 85123
+O-Subject:  [RHEL-7.7 ovmf PATCH 2/2] MdeModulePkg/HiiImage: Fix stack overflow
+	when corrupted BMP is parsed (CVE-2018-12181)
+Bugzilla: 1691479
+Acked-by: Philippe Mathieu-Daudé <philmd@redhat.com>
+Acked-by: Vitaly Kuznetsov <vkuznets@redhat.com>
+
+From: Ray Ni <ray.ni@intel.com>
+
+REF: https://bugzilla.tianocore.org/show_bug.cgi?id=1135
+
+For 4bit BMP, there are only 2^4 = 16 colors in the palette.
+But when a corrupted BMP contains more than 16 colors in the palette,
+today's implementation wrongly copies all colors to the local
+PaletteValue[16] array which causes stack overflow.
+
+The similar issue also exists in the logic to handle 8bit BMP.
+
+The patch fixes the issue by only copies the first 16 or 256 colors
+in the palette depending on the BMP type.
+
+Contributed-under: TianoCore Contribution Agreement 1.1
+Signed-off-by: Ray Ni <ray.ni@intel.com>
+Cc: Liming Gao <liming.gao@intel.com>
+Cc: Jiewen Yao <jiewen.yao@intel.com>
+Reviewed-by: Jian J Wang <jian.j.wang@intel.com>
+(cherry picked from commit 89910a39dcfd788057caa5d88b7e76e112d187b5)
+---
+ MdeModulePkg/Universal/HiiDatabaseDxe/Image.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/MdeModulePkg/Universal/HiiDatabaseDxe/Image.c b/MdeModulePkg/Universal/HiiDatabaseDxe/Image.c
+index dc9566b..9829bdd 100644
+--- a/MdeModulePkg/Universal/HiiDatabaseDxe/Image.c
++++ b/MdeModulePkg/Universal/HiiDatabaseDxe/Image.c
+@@ -370,7 +370,7 @@ Output4bitPixel (
+   PaletteNum = (UINT16)(Palette->PaletteSize / sizeof (EFI_HII_RGB_PIXEL));
+ 
+   ZeroMem (PaletteValue, sizeof (PaletteValue));
+-  CopyRgbToGopPixel (PaletteValue, Palette->PaletteValue, PaletteNum);
++  CopyRgbToGopPixel (PaletteValue, Palette->PaletteValue, MIN (PaletteNum, ARRAY_SIZE (PaletteValue)));
+   FreePool (Palette);
+ 
+   //
+@@ -447,7 +447,7 @@ Output8bitPixel (
+   CopyMem (Palette, PaletteInfo, PaletteSize);
+   PaletteNum = (UINT16)(Palette->PaletteSize / sizeof (EFI_HII_RGB_PIXEL));
+   ZeroMem (PaletteValue, sizeof (PaletteValue));
+-  CopyRgbToGopPixel (PaletteValue, Palette->PaletteValue, PaletteNum);
++  CopyRgbToGopPixel (PaletteValue, Palette->PaletteValue, MIN (PaletteNum, ARRAY_SIZE (PaletteValue)));
+   FreePool (Palette);
+ 
+   //
+-- 
+1.8.3.1
+

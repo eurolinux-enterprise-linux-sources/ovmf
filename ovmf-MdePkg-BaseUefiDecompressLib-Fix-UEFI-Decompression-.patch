@@ -1,0 +1,59 @@
+From c3915e0546924db36fd1cd85bf77318302168ee6 Mon Sep 17 00:00:00 2001
+From: Philippe Mathieu-Daude <philmd@redhat.com>
+Date: Wed, 13 Feb 2019 09:50:49 +0100
+Subject: [PATCH 06/13] MdePkg BaseUefiDecompressLib: Fix UEFI Decompression
+ logic issue
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Message-id: <20190213085050.20766-7-philmd@redhat.com>
+Patchwork-id: 84485
+O-Subject:  [RHEL-7.7 ovmf PATCH v3 6/7] MdePkg BaseUefiDecompressLib: Fix UEFI
+	Decompression logic issue
+Bugzilla: 1666586
+Acked-by: Laszlo Ersek <lersek@redhat.com>
+Acked-by: Vitaly Kuznetsov <vkuznets@redhat.com>
+
+From: Philippe Mathieu-Daudé <philmd@redhat.com>
+
+From: Liming Gao <liming.gao@intel.com>
+
+https://bugzilla.tianocore.org/show_bug.cgi?id=1317
+
+This is a regression issue caused by 2ec7953d49677142c5f7552e9e3d96fb406ba0c4.
+In Decode() function, once mOutBuf is fully filled, Decode() should return.
+Current logic misses the checker of mOutBuf after while() loop.
+
+Contributed-under: TianoCore Contribution Agreement 1.1
+Signed-off-by: Liming Gao <liming.gao@intel.com>
+Cc: Michael Kinney <michael.d.kinney@intel.com>
+Reviewed-by: Yonghong Zhu <yonghong.zhu@intel.com>
+(cherry picked from commit 1c4cecc9fd314de0dce8125b0d4b45967637a401)
+Signed-off-by: Philippe Mathieu-Daudé <philmd@redhat.com>
+(cherry picked from commit c46469847b68f6a1a5b42feaf0de7a83fd0bed85)
+Signed-off-by: Philippe Mathieu-Daude <philmd@redhat.com>
+---
+ MdePkg/Library/BaseUefiDecompressLib/BaseUefiDecompressLib.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/MdePkg/Library/BaseUefiDecompressLib/BaseUefiDecompressLib.c b/MdePkg/Library/BaseUefiDecompressLib/BaseUefiDecompressLib.c
+index 0c6b1fe..8c30e97 100644
+--- a/MdePkg/Library/BaseUefiDecompressLib/BaseUefiDecompressLib.c
++++ b/MdePkg/Library/BaseUefiDecompressLib/BaseUefiDecompressLib.c
+@@ -641,6 +641,12 @@ Decode (
+ 
+         BytesRemain--;
+       }
++      //
++      // Once mOutBuf is fully filled, directly return
++      //
++      if (Sd->mOutBuf >= Sd->mOrigSize) {
++        goto Done;
++      }
+     }
+   }
+ 
+-- 
+1.8.3.1
+

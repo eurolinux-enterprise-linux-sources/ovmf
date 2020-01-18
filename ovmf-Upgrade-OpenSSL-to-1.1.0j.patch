@@ -1,0 +1,192 @@
+From 05565be8fdd79d641aa22b7b7a686dd68f158ce8 Mon Sep 17 00:00:00 2001
+From: Laszlo Ersek <lersek@redhat.com>
+Date: Wed, 13 Feb 2019 22:06:28 +0100
+Subject: [PATCH 13/13] Upgrade OpenSSL to 1.1.0j
+
+RH-Author: Laszlo Ersek <lersek@redhat.com>
+Message-id: <20190213225928.17791-5-lersek@redhat.com>
+Patchwork-id: 84502
+O-Subject: [RHEL-7.7 ovmf PATCH 4/4] Upgrade OpenSSL to 1.1.0j
+Bugzilla: 1650390
+RH-Acked-by: Thomas Huth <thuth@redhat.com>
+RH-Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+--v-- RHEL7 note start --v--
+
+(1) NOTE: this is a partial cherry-pick. We're only advancing to 1.1.0i.
+
+    The upstream commit advanced the OpenSSL git submodule from upstream
+    OpenSSL commit d4e4bd2a8163 ("Prepare for 1.1.0h release", 2018-03-27)
+    to upstream OpenSSL commit 74f2d9c1ec5f ("Prepare for 1.1.0j release",
+    2018-11-20). Meaning, upstream edk2 skipped 1.1.0i.
+
+    However, Fedora 28 only offers 1.1.0i at this point (and it will not
+    be rebased again until 1.1.0k is released). Therefore hunks in the
+    upstream CryptoPkg commit that relate specifically to 1.1.0j have to
+    be dropped from the backport.
+
+    The only such hunks are the "crypto/getenv.c" additions to the INF
+    files. The related upstream OpenSSL change was commit 1abdf08284af
+    ("Use secure_getenv(3) when available.", 2018-09-24), part of tag
+    "OpenSSL_1_1_0j".
+
+    The other hunks all relate to OpenSSL commits present in tag
+    "OpenSSL_1_1_0i" -- hence we keep those hunks:
+
+    * 23dec58b9c2e ("Move the loading of the ssl_conf module to
+      libcrypto", 2018-04-05)
+
+      This justifies the addition of "crypto/conf/conf_ssl.c" to the INF
+      files.
+
+    * 6912debb881e ("Add APIs for custom X509_LOOKUP_METHOD creation",
+      2018-05-30)
+
+      This justifies the addition of "crypto/x509/x509_meth.c" to the INF
+      files.
+
+    * dcb8333087d5 ("Avoid __GNUC__ warnings when defining
+      DECLARE_DEPRECATED", 2018-07-11)
+
+      This justifies the ifdeffery update in "opensslconf.h".
+
+(2) After this downstream patch, the affected files almost match their
+    upstream counterparts at commit a18f784cfdbe (i.e., at the commit
+    being cherry-picked). What's missing (beyond the above 1.1.0j-specific
+    hunks) belong to the following upstream commits, which we don't need:
+
+    * 630f67ddfea2 ("CryptoPkg: Clean up source files", 2018-06-28),
+
+    * 94d67262d891 ("CryptoPkg: Removing ipf which is no longer supported
+      from edk2.", 2018-09-25)
+
+      (IPF stands for Itanium.)
+
+--^-- RHEL7 note end --^--
+
+REF: https://bugzilla.tianocore.org/show_bug.cgi?id=1393
+
+BZ#1089 (https://bugzilla.tianocore.org/show_bug.cgi?id=1089) requests
+to upgrade the OpenSSL to the latest 1.1.1 release. Since OpenSSL-1.1.1
+has many changes, more porting efforts and feature evaluation are needed.
+This might lead to a situation that it cannot catch the Q1'19 stable tag.
+
+One of the solution is upgrade current version (1.1.0h) to 1.1.0j.
+According to following web page in openssl.org, all security issues
+solved in 1.1.1 have been also back-ported to 1.1.0.j. This can make
+sure that no security vulnerabilities left in edk2 master before 1.1.1.
+
+https://www.openssl.org/news/vulnerabilities-1.1.1.html
+
+Cc: Ting Ye <ting.ye@intel.com>
+Cc: Gang Wei <gang.wei@intel.com>
+Contributed-under: TianoCore Contribution Agreement 1.1
+Signed-off-by: Jian J Wang <jian.j.wang@intel.com>
+Reviewed-by: Gang Wei <gang.wei@intel.com>
+Reviewed-by: Ting Ye <ting.ye@intel.com>
+(cherry picked from commit a18f784cfdbe17855ec4376e80db927e1a81aaca)
+---
+ CryptoPkg/CryptoPkg.dsc                           |  1 +
+ CryptoPkg/Library/Include/openssl/opensslconf.h   | 20 +++++++++++++-------
+ CryptoPkg/Library/OpensslLib/OpensslLib.inf       |  2 ++
+ CryptoPkg/Library/OpensslLib/OpensslLibCrypto.inf |  2 ++
+ CryptoPkg/Library/OpensslLib/process_files.pl     |  0
+ 5 files changed, 18 insertions(+), 7 deletions(-)
+ mode change 100644 => 100755 CryptoPkg/Library/OpensslLib/process_files.pl
+
+diff --git a/CryptoPkg/CryptoPkg.dsc b/CryptoPkg/CryptoPkg.dsc
+index b49e587..f305f95 100644
+--- a/CryptoPkg/CryptoPkg.dsc
++++ b/CryptoPkg/CryptoPkg.dsc
+@@ -124,6 +124,7 @@
+   CryptoPkg/Library/BaseCryptLib/PeiCryptLib.inf
+   CryptoPkg/Library/BaseCryptLib/RuntimeCryptLib.inf
+   CryptoPkg/Library/TlsLib/TlsLib.inf
++  CryptoPkg/Library/OpensslLib/OpensslLib.inf
+ 
+   CryptoPkg/CryptRuntimeDxe/CryptRuntimeDxe.inf
+ 
+diff --git a/CryptoPkg/Library/Include/openssl/opensslconf.h b/CryptoPkg/Library/Include/openssl/opensslconf.h
+index 1917d7a..28dd9ab 100644
+--- a/CryptoPkg/Library/Include/openssl/opensslconf.h
++++ b/CryptoPkg/Library/Include/openssl/opensslconf.h
+@@ -2,7 +2,7 @@
+  * WARNING: do not edit!
+  * Generated from include/openssl/opensslconf.h.in
+  *
+- * Copyright 2016 The OpenSSL Project Authors. All Rights Reserved.
++ * Copyright 2016-2018 The OpenSSL Project Authors. All Rights Reserved.
+  *
+  * Licensed under the OpenSSL license (the "License").  You may not use
+  * this file except in compliance with the License.  You can obtain a copy
+@@ -235,12 +235,18 @@ extern "C" {
+  * still won't see them if the library has been built to disable deprecated
+  * functions.
+  */
+-#if defined(OPENSSL_NO_DEPRECATED)
+-# define DECLARE_DEPRECATED(f)
+-#elif __GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ > 0)
+-# define DECLARE_DEPRECATED(f)    f __attribute__ ((deprecated));
+-#else
+-# define DECLARE_DEPRECATED(f)   f;
++#ifndef DECLARE_DEPRECATED
++# if defined(OPENSSL_NO_DEPRECATED)
++#  define DECLARE_DEPRECATED(f)
++# else
++#  define DECLARE_DEPRECATED(f)   f;
++#  ifdef __GNUC__
++#   if __GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ > 0)
++#    undef DECLARE_DEPRECATED
++#    define DECLARE_DEPRECATED(f)    f __attribute__ ((deprecated));
++#   endif
++#  endif
++# endif
+ #endif
+ 
+ #ifndef OPENSSL_FILE
+diff --git a/CryptoPkg/Library/OpensslLib/OpensslLib.inf b/CryptoPkg/Library/OpensslLib/OpensslLib.inf
+index 55a6fa3..b44510d 100644
+--- a/CryptoPkg/Library/OpensslLib/OpensslLib.inf
++++ b/CryptoPkg/Library/OpensslLib/OpensslLib.inf
+@@ -175,6 +175,7 @@
+   $(OPENSSL_PATH)/crypto/conf/conf_mall.c
+   $(OPENSSL_PATH)/crypto/conf/conf_mod.c
+   $(OPENSSL_PATH)/crypto/conf/conf_sap.c
++  $(OPENSSL_PATH)/crypto/conf/conf_ssl.c
+   $(OPENSSL_PATH)/crypto/cpt_err.c
+   $(OPENSSL_PATH)/crypto/cryptlib.c
+   $(OPENSSL_PATH)/crypto/cversion.c
+@@ -418,6 +419,7 @@
+   $(OPENSSL_PATH)/crypto/x509/x509_err.c
+   $(OPENSSL_PATH)/crypto/x509/x509_ext.c
+   $(OPENSSL_PATH)/crypto/x509/x509_lu.c
++  $(OPENSSL_PATH)/crypto/x509/x509_meth.c
+   $(OPENSSL_PATH)/crypto/x509/x509_obj.c
+   $(OPENSSL_PATH)/crypto/x509/x509_r2x.c
+   $(OPENSSL_PATH)/crypto/x509/x509_req.c
+diff --git a/CryptoPkg/Library/OpensslLib/OpensslLibCrypto.inf b/CryptoPkg/Library/OpensslLib/OpensslLibCrypto.inf
+index f542998..46217cc 100644
+--- a/CryptoPkg/Library/OpensslLib/OpensslLibCrypto.inf
++++ b/CryptoPkg/Library/OpensslLib/OpensslLibCrypto.inf
+@@ -175,6 +175,7 @@
+   $(OPENSSL_PATH)/crypto/conf/conf_mall.c
+   $(OPENSSL_PATH)/crypto/conf/conf_mod.c
+   $(OPENSSL_PATH)/crypto/conf/conf_sap.c
++  $(OPENSSL_PATH)/crypto/conf/conf_ssl.c
+   $(OPENSSL_PATH)/crypto/cpt_err.c
+   $(OPENSSL_PATH)/crypto/cryptlib.c
+   $(OPENSSL_PATH)/crypto/cversion.c
+@@ -418,6 +419,7 @@
+   $(OPENSSL_PATH)/crypto/x509/x509_err.c
+   $(OPENSSL_PATH)/crypto/x509/x509_ext.c
+   $(OPENSSL_PATH)/crypto/x509/x509_lu.c
++  $(OPENSSL_PATH)/crypto/x509/x509_meth.c
+   $(OPENSSL_PATH)/crypto/x509/x509_obj.c
+   $(OPENSSL_PATH)/crypto/x509/x509_r2x.c
+   $(OPENSSL_PATH)/crypto/x509/x509_req.c
+diff --git a/CryptoPkg/Library/OpensslLib/process_files.pl b/CryptoPkg/Library/OpensslLib/process_files.pl
+old mode 100644
+new mode 100755
+-- 
+1.8.3.1
+

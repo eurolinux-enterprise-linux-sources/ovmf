@@ -1,0 +1,80 @@
+From 0afba771bf42a9793e86bc565f23a8ca99d53dbb Mon Sep 17 00:00:00 2001
+From: Philippe Mathieu-Daude <philmd@redhat.com>
+Date: Wed, 13 Feb 2019 09:50:44 +0100
+Subject: [PATCH 01/13] MdeModulePkg Variable: Fix Timestamp zeroing issue on
+ APPEND_WRITE
+
+Message-id: <20190213085050.20766-2-philmd@redhat.com>
+Patchwork-id: 84478
+O-Subject:  [RHEL-7.7 ovmf PATCH v3 1/7] MdeModulePkg Variable: Fix Timestamp
+	zeroing issue on APPEND_WRITE
+Bugzilla: 1666586
+Acked-by: Laszlo Ersek <lersek@redhat.com>
+Acked-by: Vitaly Kuznetsov <vkuznets@redhat.com>
+
+From: Laszlo Ersek <lersek@redhat.com>
+
+From: Star Zeng <star.zeng@intel.com>
+
+--v-- RHEL7 note start --v--
+
+This patch fixes CVE-2018-3613. Unfortunately, the upstream subject line
+does not include the CVE number. I've decided to stick with the upstream
+subject verbatim in the backport, so we can more easily drop this patch at
+the next rebase. On the upstream list, I did complain loudly, so there's
+hope the next CVE fix will advertise the CVE number in the subject.
+
+In practice, the vulnerability is difficult to exploit. Please refer to
+the following messages in the upstream discussion:
+
+  https://lists.01.org/pipermail/edk2-devel/2018-October/031103.html
+  https://lists.01.org/pipermail/edk2-devel/2018-October/031140.html
+
+--^-- RHEL7 note end --^--
+
+REF: https://bugzilla.tianocore.org/show_bug.cgi?id=415
+
+When SetVariable() to a time based auth variable with APPEND_WRITE
+attribute, and if the EFI_VARIABLE_AUTHENTICATION_2.TimeStamp in
+the input Data is earlier than current value, it will cause timestamp
+zeroing.
+
+This issue may bring time based auth variable downgrade problem.
+For example:
+A vendor released three certs at 2014, 2015, and 2016, and system
+integrated the 2016 cert. User can SetVariable() with 2015 cert and
+APPEND_WRITE attribute to cause timestamp zeroing first, then
+SetVariable() with 2014 cert to downgrade the cert.
+
+This patch fixes this issue.
+
+Cc: Jiewen Yao <jiewen.yao@intel.com>
+Cc: Chao Zhang <chao.b.zhang@intel.com>
+Cc: Jian J Wang <jian.j.wang@intel.com>
+Contributed-under: TianoCore Contribution Agreement 1.1
+Signed-off-by: Star Zeng <star.zeng@intel.com>
+Reviewed-by: Jiewen Yao <jiewen.yao@intel.com>
+(cherry picked from commit b7dc8888f31402f410c53242839271ba3b94b619)
+Signed-off-by: Laszlo Ersek <lersek@redhat.com>
+(cherry picked from commit 3b8ff18ad4ac1af740a979ad27fb83dbbdca70ef)
+Signed-off-by: Philippe Mathieu-Daude <philmd@redhat.com>
+---
+ MdeModulePkg/Universal/Variable/RuntimeDxe/Variable.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/MdeModulePkg/Universal/Variable/RuntimeDxe/Variable.c b/MdeModulePkg/Universal/Variable/RuntimeDxe/Variable.c
+index 6caf603..60439b5 100644
+--- a/MdeModulePkg/Universal/Variable/RuntimeDxe/Variable.c
++++ b/MdeModulePkg/Universal/Variable/RuntimeDxe/Variable.c
+@@ -2460,6 +2460,8 @@ UpdateVariable (
+         if (Variable->CurrPtr != NULL) {
+           if (VariableCompareTimeStampInternal (&(((AUTHENTICATED_VARIABLE_HEADER *) CacheVariable->CurrPtr)->TimeStamp), TimeStamp)) {
+             CopyMem (&AuthVariable->TimeStamp, TimeStamp, sizeof (EFI_TIME));
++          } else {
++            CopyMem (&AuthVariable->TimeStamp, &(((AUTHENTICATED_VARIABLE_HEADER *) CacheVariable->CurrPtr)->TimeStamp), sizeof (EFI_TIME));
+           }
+         }
+       }
+-- 
+1.8.3.1
+
