@@ -1,0 +1,133 @@
+From da0824d6f3ec86197ce2d89f2228f3c8894c75ee Mon Sep 17 00:00:00 2001
+From: Laszlo Ersek <lersek@redhat.com>
+Date: Tue, 5 Dec 2017 20:41:42 +0100
+Subject: [PATCH 2/2] MdeModulePkg/BdsDxe: fall back to a Boot Manager Menu
+ loop before hanging
+
+Message-id: <20171205194142.23784-2-lersek@redhat.com>
+Patchwork-id: 78171
+O-Subject:  [RHEL-7.5 ovmf PATCH 1/1] MdeModulePkg/BdsDxe: fall back to a Boot
+	Manager Menu loop before hanging
+Bugzilla: 1515418
+Acked-by: Thomas Huth <thuth@redhat.com>
+Acked-by: Dr. David Alan Gilbert <dgilbert@redhat.com>
+
+Under the following scenario:
+
+- no UEFI bootable application available anywhere in the system,
+- ... not even for the default platform recovery option,
+- no shell is built into the firmware image,
+- but UiApp is available in the firmware image,
+
+we should preferably not just hang in BdsEntry() with:
+
+   DEBUG ((EFI_D_ERROR, "[Bds] Unable to boot!\n"));
+   CpuDeadLoop ();
+
+while the user sits at the TianoCore logo page, wondering what's going on.
+Print an informative message to the console, wait for a keypress, and then
+return to the Boot Manager Menu forever.
+
+Cc: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+Cc: Jordan Justen <jordan.l.justen@intel.com>
+Cc: Ruiyu Ni <ruiyu.ni@intel.com>
+Cc: Eric Dong <eric.dong@intel.com>
+Cc: Star Zeng <star.zeng@intel.com>
+Ref: https://bugzilla.redhat.com/show_bug.cgi?id=1515418
+Ref: https://bugzilla.tianocore.org/show_bug.cgi?id=513
+Suggested-by: Ruiyu Ni <ruiyu.ni@intel.com>
+Contributed-under: TianoCore Contribution Agreement 1.1
+Signed-off-by: Laszlo Ersek <lersek@redhat.com>
+Reviewed-by: Ruiyu Ni <ruiyu.ni@intel.com>
+(cherry picked from commit d1de487dd2e77f4741abcbd71d19a8c93971fda0)
+---
+ MdeModulePkg/Universal/BdsDxe/BdsEntry.c | 60 +++++++++++++++++++++++++++++---
+ 1 file changed, 56 insertions(+), 4 deletions(-)
+
+diff --git a/MdeModulePkg/Universal/BdsDxe/BdsEntry.c b/MdeModulePkg/Universal/BdsDxe/BdsEntry.c
+index a6fe617..d4a4ae8 100644
+--- a/MdeModulePkg/Universal/BdsDxe/BdsEntry.c
++++ b/MdeModulePkg/Universal/BdsDxe/BdsEntry.c
+@@ -686,6 +686,55 @@ BdsAllocateMemoryForPerformanceData (
+ }
+ 
+ /**
++  Enter an infinite loop of calling the Boot Manager Menu.
++
++  This is a last resort alternative to BdsEntry() giving up for good. This
++  function never returns.
++
++  @param[in] BootManagerMenu  The EFI_BOOT_MANAGER_LOAD_OPTION located and/or
++                              created by the EfiBootManagerGetBootManagerMenu()
++                              call in BdsEntry().
++**/
++VOID
++BdsBootManagerMenuLoop (
++  IN EFI_BOOT_MANAGER_LOAD_OPTION *BootManagerMenu
++  )
++{
++  EFI_INPUT_KEY Key;
++
++  //
++  // Normally BdsDxe does not print anything to the system console, but this is
++  // a last resort -- the end-user will likely not see any DEBUG messages
++  // logged in this situation.
++  //
++  // AsciiPrint() will NULL-check gST->ConOut internally. We check gST->ConIn
++  // here to see if it makes sense to request and wait for a keypress.
++  //
++  if (gST->ConIn != NULL) {
++    AsciiPrint (
++      "%a: No bootable option or device was found.\n"
++      "%a: Press any key to enter the Boot Manager Menu.\n",
++      gEfiCallerBaseName,
++      gEfiCallerBaseName
++      );
++    BdsWaitForSingleEvent (gST->ConIn->WaitForKey, 0);
++
++    //
++    // Drain any queued keys.
++    //
++    while (!EFI_ERROR (gST->ConIn->ReadKeyStroke (gST->ConIn, &Key))) {
++      //
++      // just throw away Key
++      //
++    }
++  }
++
++  for (;;) {
++    EfiBootManagerBoot (BootManagerMenu);
++  }
++}
++
++/**
+ 
+   Service routine for BdsInstance->Entry(). Devices are connected, the
+   consoles are initialized, and the boot options are tried.
+@@ -1088,16 +1137,19 @@ BdsEntry (
+     } while (BootSuccess);
+   }
+ 
+-  if (BootManagerMenuStatus != EFI_NOT_FOUND) {
+-    EfiBootManagerFreeLoadOption (&BootManagerMenu);
+-  }
+-
+   if (!BootSuccess) {
+     LoadOptions = EfiBootManagerGetLoadOptions (&LoadOptionCount, LoadOptionTypePlatformRecovery);
+     ProcessLoadOptions (LoadOptions, LoadOptionCount);
+     EfiBootManagerFreeLoadOptions (LoadOptions, LoadOptionCount);
+   }
+ 
++  //
++  // If BootManagerMenu is available, fall back to it indefinitely.
++  //
++  if (BootManagerMenuStatus != EFI_NOT_FOUND) {
++    BdsBootManagerMenuLoop (&BootManagerMenu);
++  }
++
+   DEBUG ((EFI_D_ERROR, "[Bds] Unable to boot!\n"));
+   CpuDeadLoop ();
+ }
+-- 
+1.8.3.1
+

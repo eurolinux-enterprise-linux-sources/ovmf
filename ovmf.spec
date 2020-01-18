@@ -1,13 +1,13 @@
 ExclusiveArch: x86_64 aarch64
 
-%define GITDATE        20170228
-%define GITCOMMIT      c325e41585e3
+%define GITDATE        20171011
+%define GITCOMMIT      92d07e48907f
 
 %global debug_package %{nil}
 
 Name:       ovmf
 Version:    %{GITDATE}
-Release:    5.git%{GITCOMMIT}%{?dist}
+Release:    4.git%{GITCOMMIT}%{?dist}
 Summary:    UEFI firmware for 64-bit virtual machines
 Group:      Applications/Emulators
 License:    BSD and OpenSSL
@@ -20,69 +20,50 @@ URL:        http://www.tianocore.org
 Source0: http://batcave.lab.eng.brq.redhat.com/www/ovmf-%{GITCOMMIT}.tar.xz
 Source1: ovmf-whitepaper-c770f8c.txt
 
-Patch2: 0002-target.template-select-OVMF-X64-gcc-4.8-as-default-R.patch
-Patch3: 0003-BuildEnv-override-set-C-noclobber-of-sourcing-env-RH.patch
+Patch2: 0002-BuildEnv-override-set-C-noclobber-of-sourcing-env-RH.patch
 Patch5: 0005-setup-the-tree-for-the-secure-boot-feature-RHEL-only.patch
 Patch6: 0006-advertise-OpenSSL-on-TianoCore-splash-screen-boot-lo.patch
-Patch7: 0007-OvmfPkg-silence-EFI_D_VERBOSE-0x00400000-in-NvmExpre.patch
-Patch8: 0008-OvmfPkg-silence-EFI_D_VERBOSE-0x00400000-in-QemuVide.patch
-Patch9: 0009-OvmfPkg-enable-DEBUG_VERBOSE-RHEL-only.patch
-Patch10: 0010-OvmfPkg-increase-max-debug-message-length-to-512-RHE.patch
-Patch11: 0011-OvmfPkg-QemuVideoDxe-enable-debug-messages-in-VbeShi.patch
-Patch12: 0012-MdeModulePkg-TerminalDxe-add-other-text-resolutions-.patch
-Patch13: 0013-MdeModulePkg-TerminalDxe-set-xterm-resolution-on-mod.patch
-Patch14: 0014-OvmfPkg-take-PcdResizeXterm-from-the-QEMU-command-li.patch
-Patch15: 0015-ArmVirtPkg-QemuFwCfgLib-allow-UEFI_DRIVER-client-mod.patch
-Patch16: 0016-ArmVirtPkg-take-PcdResizeXterm-from-the-QEMU-command.patch
-Patch17: 0017-OvmfPkg-allow-exclusion-of-the-shell-from-the-firmwa.patch
-Patch18: 0018-OvmfPkg-EnrollDefaultKeys-application-for-enrolling-.patch
-Patch19: 0019-ArmPlatformPkg-introduce-fixed-PCD-for-early-hello-m.patch
-Patch20: 0020-ArmPlatformPkg-PrePeiCore-write-early-hello-message-.patch
-Patch21: 0021-ArmVirtPkg-set-early-hello-message-RH-only.patch
-# For bz#1433428 - AAVMF: Fix error message during ARM guest VM installation
-Patch22: ovmf-MdeModulePkg-Core-Dxe-downgrade-CodeSegmentCount-is-.patch
-# For bz#1430262 - AAVMF: forward QEMU's DT to the guest OS only if ACPI payload is unavailable
-Patch23: ovmf-ArmVirtPkg-FdtClientDxe-supplement-missing-EFIAPI-ca.patch
-# For bz#1430262 - AAVMF: forward QEMU's DT to the guest OS only if ACPI payload is unavailable
-Patch24: ovmf-ArmVirtPkg-ArmVirtPL031FdtClientLib-unconditionally-.patch
-# For bz#1430262 - AAVMF: forward QEMU's DT to the guest OS only if ACPI payload is unavailable
-Patch25: ovmf-MdeModulePkg-RamDiskDxe-fix-C-string-literal-catenat.patch
-# For bz#1430262 - AAVMF: forward QEMU's DT to the guest OS only if ACPI payload is unavailable
-Patch26: ovmf-EmbeddedPkg-introduce-EDKII-Platform-Has-ACPI-GUID.patch
-# For bz#1430262 - AAVMF: forward QEMU's DT to the guest OS only if ACPI payload is unavailable
-Patch27: ovmf-EmbeddedPkg-introduce-PlatformHasAcpiLib.patch
-# For bz#1430262 - AAVMF: forward QEMU's DT to the guest OS only if ACPI payload is unavailable
-Patch28: ovmf-EmbeddedPkg-introduce-EDKII-Platform-Has-Device-Tree.patch
-# For bz#1430262 - AAVMF: forward QEMU's DT to the guest OS only if ACPI payload is unavailable
-Patch29: ovmf-ArmVirtPkg-add-PlatformHasAcpiDtDxe.patch
-# For bz#1430262 - AAVMF: forward QEMU's DT to the guest OS only if ACPI payload is unavailable
-Patch30: ovmf-ArmVirtPkg-enable-AcpiTableDxe-and-EFI_ACPI_TABLE_PR.patch
-# For bz#1430262 - AAVMF: forward QEMU's DT to the guest OS only if ACPI payload is unavailable
-Patch31: ovmf-ArmVirtPkg-FdtClientDxe-install-DT-as-sysconfig-tabl.patch
-# For bz#1430262 - AAVMF: forward QEMU's DT to the guest OS only if ACPI payload is unavailable
-Patch32: ovmf-ArmVirtPkg-PlatformHasAcpiDtDxe-don-t-expose-DT-if-Q.patch
-# For bz#1430262 - AAVMF: forward QEMU's DT to the guest OS only if ACPI payload is unavailable
-Patch33: ovmf-ArmVirtPkg-remove-PURE_ACPI_BOOT_ENABLE-and-PcdPureA.patch
-# For bz#1442908 - Guest hang when running a wrong command in Uefishell
-Patch34: ovmf-ShellPkg-Shell-clean-up-bogus-member-types-in-SPLIT_.patch
-# For bz#1442908 - Guest hang when running a wrong command in Uefishell
-Patch35: ovmf-ShellPkg-Shell-eliminate-double-free-in-RunSplitComm.patch
-# For bz#1443351 - [svvp][ovmf] job "Secure Boot Logo Test" failed  with q35&ovmf
-Patch36: ovmf-OvmfPkg-EnrollDefaultKeys-update-SignatureOwner-GUID.patch
-# For bz#1443351 - [svvp][ovmf] job "Secure Boot Logo Test" failed  with q35&ovmf
-Patch37: ovmf-OvmfPkg-EnrollDefaultKeys-expose-CertType-parameter-.patch
-# For bz#1443351 - [svvp][ovmf] job "Secure Boot Logo Test" failed  with q35&ovmf
-Patch38: ovmf-OvmfPkg-EnrollDefaultKeys-blacklist-empty-file-in-db.patch
-# For bz#1443351 - [svvp][ovmf] job "Secure Boot Logo Test" failed  with q35&ovmf
-Patch39: ovmf-OvmfPkg-introduce-the-FD_SIZE_IN_KB-macro-build-flag.patch
-# For bz#1443351 - [svvp][ovmf] job "Secure Boot Logo Test" failed  with q35&ovmf
-Patch40: ovmf-OvmfPkg-OvmfPkg.fdf.inc-extract-VARS_LIVE_SIZE-and-V.patch
-# For bz#1443351 - [svvp][ovmf] job "Secure Boot Logo Test" failed  with q35&ovmf
-Patch41: ovmf-OvmfPkg-introduce-4MB-flash-image-mainly-for-Windows.patch
-# For bz#1443351 - [svvp][ovmf] job "Secure Boot Logo Test" failed  with q35&ovmf
-Patch42: ovmf-OvmfPkg-raise-max-variable-size-auth-non-auth-to-33K.patch
-# For bz#1443351 - [svvp][ovmf] job "Secure Boot Logo Test" failed  with q35&ovmf
-Patch43: ovmf-OvmfPkg-PlatformPei-handle-non-power-of-two-spare-si.patch
+Patch7: 0007-OvmfPkg-increase-max-debug-message-length-to-512-RHE.patch
+Patch8: 0008-OvmfPkg-QemuVideoDxe-enable-debug-messages-in-VbeShi.patch
+Patch9: 0009-MdeModulePkg-TerminalDxe-add-other-text-resolutions-.patch
+Patch10: 0010-MdeModulePkg-TerminalDxe-set-xterm-resolution-on-mod.patch
+Patch11: 0011-OvmfPkg-take-PcdResizeXterm-from-the-QEMU-command-li.patch
+Patch12: 0012-ArmVirtPkg-QemuFwCfgLib-allow-UEFI_DRIVER-client-mod.patch
+Patch13: 0013-ArmVirtPkg-take-PcdResizeXterm-from-the-QEMU-command.patch
+Patch14: 0014-OvmfPkg-allow-exclusion-of-the-shell-from-the-firmwa.patch
+Patch15: 0015-OvmfPkg-EnrollDefaultKeys-application-for-enrolling-.patch
+Patch16: 0016-ArmPlatformPkg-introduce-fixed-PCD-for-early-hello-m.patch
+Patch17: 0017-ArmPlatformPkg-PrePeiCore-write-early-hello-message-.patch
+Patch18: 0018-ArmVirtPkg-set-early-hello-message-RH-only.patch
+Patch19: 0019-OvmfPkg-ArmVirtPkg-MdeModulePkg-disable-UDF-support-.patch
+# For bz#1513632 - [RHEL-ALT 7.5] AAVMF fails to boot after setting BootNext
+Patch20: ovmf-MdeModulePkg-Bds-Remove-assertion-in-BmCharToUint.patch
+# For bz#1513632 - [RHEL-ALT 7.5] AAVMF fails to boot after setting BootNext
+Patch21: ovmf-MdeModulePkg-Bds-Check-variable-name-even-if-OptionN.patch
+# For bz#1514105 - backport edk2 commit 6e3287442774 so that PciBusDxe not over-claim resources
+Patch22: ovmf-MdeModulePkg-PciBus-Fix-bug-that-PCI-BUS-claims-too-.patch
+# For bz#1488247 - make debug logging no-op unless a debug console is active
+Patch23: ovmf-OvmfPkg-make-it-a-proper-BASE-library.patch
+# For bz#1488247 - make debug logging no-op unless a debug console is active
+Patch24: ovmf-OvmfPkg-create-a-separate-PlatformDebugLibIoPort-ins.patch
+# For bz#1488247 - make debug logging no-op unless a debug console is active
+Patch25: ovmf-OvmfPkg-save-on-I-O-port-accesses-when-the-debug-por.patch
+# For bz#1488247 - make debug logging no-op unless a debug console is active
+Patch26: ovmf-OvmfPkg-enable-DEBUG_VERBOSE-RHEL-only.patch
+# For bz#1488247 - make debug logging no-op unless a debug console is active
+Patch27: ovmf-OvmfPkg-silence-EFI_D_VERBOSE-0x00400000-in-QemuVide.patch
+# For bz#1488247 - make debug logging no-op unless a debug console is active
+Patch28: ovmf-OvmfPkg-silence-EFI_D_VERBOSE-0x00400000-in-NvmExpre.patch
+# For bz#1518308 - UEFI memory map regression (runtime code entry splitting) introduced by c1cab54ce57c
+Patch29: ovmf-UefiCpuPkg-CpuDxe-Fix-multiple-entries-of-RT_CODE-in.patch
+# For bz#1518308 - UEFI memory map regression (runtime code entry splitting) introduced by c1cab54ce57c
+Patch30: ovmf-MdeModulePkg-DxeCore-Filter-out-all-paging-capabilit.patch
+# For bz#1518308 - UEFI memory map regression (runtime code entry splitting) introduced by c1cab54ce57c
+Patch31: ovmf-MdeModulePkg-Core-Merge-memory-map-after-filtering-p.patch
+# For bz#1520485 - AAVMF: two new messages with silent build
+Patch32: ovmf-MdeModulePkg-Core-Dxe-log-informative-memprotect-msg.patch
+# For bz#1515418 - RFE: Provide diagnostics for failed boot
+Patch33: ovmf-MdeModulePkg-BdsDxe-fall-back-to-a-Boot-Manager-Menu.patch
 
 
 # python2-devel and libuuid-devel are required for building tools
@@ -202,11 +183,11 @@ elif [ -n "%{?jobs}" ]; then
         CC_FLAGS="$CC_FLAGS -n %{?jobs}"
 fi
 
-CC_FLAGS="$CC_FLAGS --cmd-len=65536"
+CC_FLAGS="$CC_FLAGS --cmd-len=65536 -t GCC48 -b DEBUG --hash"
 
 %ifarch x86_64
 # Build with neither SB nor SMM; include UEFI shell.
-build ${CC_FLAGS} -D FD_SIZE_4MB
+build ${CC_FLAGS} -D FD_SIZE_4MB -a X64 -p OvmfPkg/OvmfPkgX64.dsc
 
 # Build with SB and SMM; exclude UEFI shell.
 build -D SECURE_BOOT_ENABLE -D EXCLUDE_SHELL_FROM_FD ${CC_FLAGS} \
@@ -272,13 +253,8 @@ copy_license() {
 }
 
 mkdir -p $RPM_BUILD_ROOT%{_docdir}/%{subpkgname}/Licenses
-copy_license FatPkg/License.txt FatPkg
-copy_license IntelFrameworkModulePkg/License.txt IntelFrameworkModulePkg
-copy_license MdeModulePkg/License.txt MdeModulePkg
-copy_license MdePkg/License.txt MdePkg
-copy_license OptionRomPkg/License.txt OptionRomPkg
+copy_license License.txt edk2
 copy_license OvmfPkg/License.txt OvmfPkg
-copy_license ShellPkg/License.txt ShellPkg
 
 %ifarch x86_64
 mkdir -p $RPM_BUILD_ROOT%{_datadir}/OVMF
@@ -294,11 +270,7 @@ install -m 0644 UefiShell.iso                             $RPM_BUILD_ROOT%{_data
 install -m 0644 OvmfPkg/README                            $RPM_BUILD_ROOT%{_docdir}/%{subpkgname}/README
 install -m 0644 ovmf-whitepaper-c770f8c.txt               $RPM_BUILD_ROOT%{_docdir}/%{subpkgname}/ovmf-whitepaper-c770f8c.txt
 
-copy_license CryptoPkg/Library/OpensslLib/openssl-*/LICENSE OpensslLib
-copy_license CryptoPkg/License.txt CryptoPkg
-copy_license PcAtChipsetPkg/License.txt PcAtChipsetPkg
-copy_license SecurityPkg/License.txt SecurityPkg
-copy_license UefiCpuPkg/License.txt UefiCpuPkg
+copy_license CryptoPkg/Library/OpensslLib/openssl/LICENSE OpensslLib
 
 %else
 mkdir -p $RPM_BUILD_ROOT%{_datadir}/AAVMF
@@ -322,10 +294,6 @@ cat Build/ArmVirtQemu-AARCH64/DEBUG_GCC48/FV/QEMU_VARS.fd \
   > $RPM_BUILD_ROOT%{_datadir}/AAVMF/AAVMF_VARS.fd
 
 chmod 0644 -- $RPM_BUILD_ROOT%{_datadir}/AAVMF/AAVMF_*.fd
-
-copy_license ArmPkg/License.txt ArmPkg
-copy_license ArmPlatformPkg/License.txt ArmPlatformPkg
-copy_license EmbeddedPkg/License.txt EmbeddedPkg
 %endif
 
 %ifarch x86_64
@@ -336,20 +304,11 @@ copy_license EmbeddedPkg/License.txt EmbeddedPkg
 
 %defattr(-,root,root,-)
 %dir %{_docdir}/%{subpkgname}/Licenses
-%doc %{_docdir}/%{subpkgname}/Licenses/FatPkg-License.txt
-%doc %{_docdir}/%{subpkgname}/Licenses/IntelFrameworkModulePkg-License.txt
-%doc %{_docdir}/%{subpkgname}/Licenses/MdeModulePkg-License.txt
-%doc %{_docdir}/%{subpkgname}/Licenses/MdePkg-License.txt
-%doc %{_docdir}/%{subpkgname}/Licenses/OptionRomPkg-License.txt
+%doc %{_docdir}/%{subpkgname}/Licenses/edk2-License.txt
 %doc %{_docdir}/%{subpkgname}/Licenses/OvmfPkg-License.txt
-%doc %{_docdir}/%{subpkgname}/Licenses/ShellPkg-License.txt
 
 %ifarch x86_64
-%doc %{_docdir}/%{subpkgname}/Licenses/CryptoPkg-License.txt
 %doc %{_docdir}/%{subpkgname}/Licenses/OpensslLib-License.txt
-%doc %{_docdir}/%{subpkgname}/Licenses/PcAtChipsetPkg-License.txt
-%doc %{_docdir}/%{subpkgname}/Licenses/SecurityPkg-License.txt
-%doc %{_docdir}/%{subpkgname}/Licenses/UefiCpuPkg-License.txt
 %doc %{_docdir}/%{subpkgname}/README
 %doc %{_docdir}/%{subpkgname}/ovmf-whitepaper-c770f8c.txt
 %dir %{_datadir}/OVMF/
@@ -361,9 +320,6 @@ copy_license EmbeddedPkg/License.txt EmbeddedPkg
 %{_datadir}/OVMF/UefiShell.iso
 
 %else
-%doc %{_docdir}/%{subpkgname}/Licenses/ArmPkg-License.txt
-%doc %{_docdir}/%{subpkgname}/Licenses/ArmPlatformPkg-License.txt
-%doc %{_docdir}/%{subpkgname}/Licenses/EmbeddedPkg-License.txt
 %dir %{_datadir}/AAVMF/
 %{_datadir}/AAVMF/AAVMF_CODE.verbose.fd
 %{_datadir}/AAVMF/AAVMF_CODE.fd
@@ -371,6 +327,58 @@ copy_license EmbeddedPkg/License.txt EmbeddedPkg
 %endif
 
 %changelog
+* Wed Dec 06 2017 Miroslav Rezanina <mrezanin@redhat.com> - 20171011-4.git92d07e48907f.el7
+- ovmf-MdeModulePkg-Core-Dxe-log-informative-memprotect-msg.patch [bz#1520485]
+- ovmf-MdeModulePkg-BdsDxe-fall-back-to-a-Boot-Manager-Menu.patch [bz#1515418]
+- Resolves: bz#1515418
+  (RFE: Provide diagnostics for failed boot)
+- Resolves: bz#1520485
+  (AAVMF: two new messages with silent build)
+
+* Fri Dec 01 2017 Miroslav Rezanina <mrezanin@redhat.com> - 20171011-3.git92d07e48907f.el7
+- ovmf-UefiCpuPkg-CpuDxe-Fix-multiple-entries-of-RT_CODE-in.patch [bz#1518308]
+- ovmf-MdeModulePkg-DxeCore-Filter-out-all-paging-capabilit.patch [bz#1518308]
+- ovmf-MdeModulePkg-Core-Merge-memory-map-after-filtering-p.patch [bz#1518308]
+- Resolves: bz#1518308
+  (UEFI memory map regression (runtime code entry splitting) introduced by c1cab54ce57c)
+
+* Mon Nov 27 2017 Miroslav Rezanina <mrezanin@redhat.com> - 20171011-2.git92d07e48907f.el7
+- ovmf-MdeModulePkg-Bds-Remove-assertion-in-BmCharToUint.patch [bz#1513632]
+- ovmf-MdeModulePkg-Bds-Check-variable-name-even-if-OptionN.patch [bz#1513632]
+- ovmf-MdeModulePkg-PciBus-Fix-bug-that-PCI-BUS-claims-too-.patch [bz#1514105]
+- ovmf-OvmfPkg-make-it-a-proper-BASE-library.patch [bz#1488247]
+- ovmf-OvmfPkg-create-a-separate-PlatformDebugLibIoPort-ins.patch [bz#1488247]
+- ovmf-OvmfPkg-save-on-I-O-port-accesses-when-the-debug-por.patch [bz#1488247]
+- ovmf-OvmfPkg-enable-DEBUG_VERBOSE-RHEL-only.patch [bz#1488247]
+- ovmf-OvmfPkg-silence-EFI_D_VERBOSE-0x00400000-in-QemuVide.patch [bz#1488247]
+- ovmf-OvmfPkg-silence-EFI_D_VERBOSE-0x00400000-in-NvmExpre.patch [bz#1488247]
+- ovmf-Revert-redhat-introduce-separate-silent-and-verbose-.patch [bz#1488247]
+- Resolves: bz#1488247
+  (make debug logging no-op unless a debug console is active)
+- Resolves: bz#1513632
+  ([RHEL-ALT 7.5] AAVMF fails to boot after setting BootNext)
+- Resolves: bz#1514105
+  (backport edk2 commit 6e3287442774 so that PciBusDxe not over-claim resources)
+
+* Wed Oct 18 2017 Miroslav Rezanina <mrezanin@redhat.com> - 20171011-1.git92d07e48907f.el7
+- Rebase to 92d07e48907f [bz#1469787]
+- Resolves: bz#1469787
+  ((ovmf-rebase-rhel-7.5) Rebase OVMF for RHEL-7.5)
+- Resolves: bz#1434740
+  (OvmfPkg/PciHotPlugInitDxe: don't reserve IO space when IO support is disabled)
+- Resolves: bz#1434747
+  ([Q35] code12 error when hotplug x710 device in win2016)
+- Resolves: bz#1447027
+  (Guest cannot boot with 240 or above vcpus when using ovmf)
+- Resolves: bz#1458192
+  ([Q35] recognize "usb-storage" devices in XHCI ports)
+- Resolves: bz#1468526
+  (>1TB RAM support)
+- Resolves: bz#1488247
+  (provide "OVMF_CODE.secboot.verbose.fd" for log capturing; silence "OVMF_CODE.secboot.fd")
+- Resolves: bz#1496170
+  (Inconsistent MOR control variables exposed by OVMF, breaks Windows Device Guard)
+
 * Fri May 12 2017 Miroslav Rezanina <mrezanin@redhat.com> - 20170228-5.gitc325e41585e3.el7
 - ovmf-OvmfPkg-EnrollDefaultKeys-update-SignatureOwner-GUID.patch [bz#1443351]
 - ovmf-OvmfPkg-EnrollDefaultKeys-expose-CertType-parameter-.patch [bz#1443351]

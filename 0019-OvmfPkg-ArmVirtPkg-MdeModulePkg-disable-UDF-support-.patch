@@ -1,0 +1,200 @@
+From a27ddebc9804b895fe0442a2878e486b273d1496 Mon Sep 17 00:00:00 2001
+From: Laszlo Ersek <lersek@redhat.com>
+Date: Wed, 11 Oct 2017 16:46:01 +0200
+Subject: OvmfPkg, ArmVirtPkg, MdeModulePkg: disable UDF support (RHEL only)
+
+The PartitionInstallUdfChildHandles() function in
+MdeModulePkg/PartitionDxe is a partition probe function (of type
+PARTITION_DETECT_ROUTINE), similar to PartitionInstallGptChildHandles(),
+PartitionInstallElToritoChildHandles(), and
+PartitionInstallMbrChildHandles().
+
+All such functions are tasked to recognize the appropriate ranges of
+block/disk devices, and to expose them as logical block devices to any
+higher level filesystem drivers. When a block/disk device is no match for
+a probe function, the probe function returns EFI_NOT_FOUND.
+
+For now, disable UDF support:
+
+- short-circuit PartitionInstallUdfChildHandles() -- return EFI_NOT_FOUND
+  immediately,
+
+- exclude the UdfDxe driver from OvmfPkg and ArmVirtPkg, which would bind
+  the handles produced by PartitionInstallUdfChildHandles().
+
+Notes about the 20170228-c325e41585e3 -> 20171011-92d07e48907f rebase:
+
+- UDF support is a new feature that we're now inheriting from upstream.
+  While it is nice to have, and our long term plan is to include it
+  down-stream, it is not required by the UEFI spec, and I'd like it to
+  mature and stabilize a bit more. In particular there's still a TianoCore
+  BZ open, with no root cause identified:
+  <https://bugzilla.tianocore.org/show_bug.cgi?id=725>. (At the time of
+  this writing, comment#6 is the last one.)
+
+- I expect to drop this patch in the next rebase.
+
+Signed-off-by: Laszlo Ersek <lersek@redhat.com>
+---
+ ArmVirtPkg/ArmVirtQemu.dsc                     | 1 -
+ ArmVirtPkg/ArmVirtQemuFvMain.fdf.inc           | 1 -
+ ArmVirtPkg/ArmVirtQemuKernel.dsc               | 1 -
+ ArmVirtPkg/ArmVirtXen.dsc                      | 1 -
+ ArmVirtPkg/ArmVirtXen.fdf                      | 1 -
+ MdeModulePkg/Universal/Disk/PartitionDxe/Udf.c | 2 ++
+ OvmfPkg/OvmfPkgIa32.dsc                        | 1 -
+ OvmfPkg/OvmfPkgIa32.fdf                        | 1 -
+ OvmfPkg/OvmfPkgIa32X64.dsc                     | 1 -
+ OvmfPkg/OvmfPkgIa32X64.fdf                     | 1 -
+ OvmfPkg/OvmfPkgX64.dsc                         | 1 -
+ OvmfPkg/OvmfPkgX64.fdf                         | 1 -
+ 12 files changed, 2 insertions(+), 11 deletions(-)
+
+diff --git a/ArmVirtPkg/ArmVirtQemu.dsc b/ArmVirtPkg/ArmVirtQemu.dsc
+index ef6eaf1..28f6084 100644
+--- a/ArmVirtPkg/ArmVirtQemu.dsc
++++ b/ArmVirtPkg/ArmVirtQemu.dsc
+@@ -321,7 +321,6 @@
+   MdeModulePkg/Universal/Disk/PartitionDxe/PartitionDxe.inf
+   MdeModulePkg/Universal/Disk/UnicodeCollation/EnglishDxe/EnglishDxe.inf
+   FatPkg/EnhancedFatDxe/Fat.inf
+-  MdeModulePkg/Universal/Disk/UdfDxe/UdfDxe.inf
+ 
+   #
+   # Bds
+diff --git a/ArmVirtPkg/ArmVirtQemuFvMain.fdf.inc b/ArmVirtPkg/ArmVirtQemuFvMain.fdf.inc
+index 8fc2cbc..476cc61 100644
+--- a/ArmVirtPkg/ArmVirtQemuFvMain.fdf.inc
++++ b/ArmVirtPkg/ArmVirtQemuFvMain.fdf.inc
+@@ -89,7 +89,6 @@ READ_LOCK_STATUS   = TRUE
+   INF MdeModulePkg/Universal/Disk/PartitionDxe/PartitionDxe.inf
+   INF FatPkg/EnhancedFatDxe/Fat.inf
+   INF MdeModulePkg/Universal/Disk/UnicodeCollation/EnglishDxe/EnglishDxe.inf
+-  INF MdeModulePkg/Universal/Disk/UdfDxe/UdfDxe.inf
+ 
+   #
+   # Platform Driver
+diff --git a/ArmVirtPkg/ArmVirtQemuKernel.dsc b/ArmVirtPkg/ArmVirtQemuKernel.dsc
+index a221641..ccfb424 100644
+--- a/ArmVirtPkg/ArmVirtQemuKernel.dsc
++++ b/ArmVirtPkg/ArmVirtQemuKernel.dsc
+@@ -306,7 +306,6 @@
+   MdeModulePkg/Universal/Disk/PartitionDxe/PartitionDxe.inf
+   MdeModulePkg/Universal/Disk/UnicodeCollation/EnglishDxe/EnglishDxe.inf
+   FatPkg/EnhancedFatDxe/Fat.inf
+-  MdeModulePkg/Universal/Disk/UdfDxe/UdfDxe.inf
+ 
+   #
+   # Bds
+diff --git a/ArmVirtPkg/ArmVirtXen.dsc b/ArmVirtPkg/ArmVirtXen.dsc
+index e943706..4bcf3a1 100644
+--- a/ArmVirtPkg/ArmVirtXen.dsc
++++ b/ArmVirtPkg/ArmVirtXen.dsc
+@@ -197,7 +197,6 @@
+   MdeModulePkg/Universal/Disk/PartitionDxe/PartitionDxe.inf
+   MdeModulePkg/Universal/Disk/UnicodeCollation/EnglishDxe/EnglishDxe.inf
+   FatPkg/EnhancedFatDxe/Fat.inf
+-  MdeModulePkg/Universal/Disk/UdfDxe/UdfDxe.inf
+ 
+   #
+   # Bds
+diff --git a/ArmVirtPkg/ArmVirtXen.fdf b/ArmVirtPkg/ArmVirtXen.fdf
+index 70e76df..67fde73 100644
+--- a/ArmVirtPkg/ArmVirtXen.fdf
++++ b/ArmVirtPkg/ArmVirtXen.fdf
+@@ -163,7 +163,6 @@ READ_LOCK_STATUS   = TRUE
+   INF MdeModulePkg/Universal/Disk/PartitionDxe/PartitionDxe.inf
+   INF FatPkg/EnhancedFatDxe/Fat.inf
+   INF MdeModulePkg/Universal/Disk/UnicodeCollation/EnglishDxe/EnglishDxe.inf
+-  INF MdeModulePkg/Universal/Disk/UdfDxe/UdfDxe.inf
+ 
+   #
+   # UEFI application (Shell Embedded Boot Loader)
+diff --git a/MdeModulePkg/Universal/Disk/PartitionDxe/Udf.c b/MdeModulePkg/Universal/Disk/PartitionDxe/Udf.c
+index 8aee30c..cd66a9c 100644
+--- a/MdeModulePkg/Universal/Disk/PartitionDxe/Udf.c
++++ b/MdeModulePkg/Universal/Disk/PartitionDxe/Udf.c
+@@ -541,6 +541,8 @@ PartitionInstallUdfChildHandles (
+   EFI_LBA                      StartingLBA;
+   EFI_LBA                      EndingLBA;
+ 
++  return EFI_NOT_FOUND;
++
+   Media = BlockIo->Media;
+ 
+   //
+diff --git a/OvmfPkg/OvmfPkgIa32.dsc b/OvmfPkg/OvmfPkgIa32.dsc
+index b0ad6e9..2c68a23 100644
+--- a/OvmfPkg/OvmfPkgIa32.dsc
++++ b/OvmfPkg/OvmfPkgIa32.dsc
+@@ -690,7 +690,6 @@
+   MdeModulePkg/Universal/Disk/RamDiskDxe/RamDiskDxe.inf
+   MdeModulePkg/Universal/Disk/UnicodeCollation/EnglishDxe/EnglishDxe.inf
+   FatPkg/EnhancedFatDxe/Fat.inf
+-  MdeModulePkg/Universal/Disk/UdfDxe/UdfDxe.inf
+   MdeModulePkg/Bus/Scsi/ScsiBusDxe/ScsiBusDxe.inf
+   MdeModulePkg/Bus/Scsi/ScsiDiskDxe/ScsiDiskDxe.inf
+   OvmfPkg/SataControllerDxe/SataControllerDxe.inf
+diff --git a/OvmfPkg/OvmfPkgIa32.fdf b/OvmfPkg/OvmfPkgIa32.fdf
+index 366d6bf..52b81c6 100644
+--- a/OvmfPkg/OvmfPkgIa32.fdf
++++ b/OvmfPkg/OvmfPkgIa32.fdf
+@@ -282,7 +282,6 @@ INF  MdeModulePkg/Universal/Acpi/BootScriptExecutorDxe/BootScriptExecutorDxe.inf
+ INF  MdeModulePkg/Universal/Acpi/BootGraphicsResourceTableDxe/BootGraphicsResourceTableDxe.inf
+ 
+ INF  FatPkg/EnhancedFatDxe/Fat.inf
+-INF  MdeModulePkg/Universal/Disk/UdfDxe/UdfDxe.inf
+ 
+ !ifndef $(EXCLUDE_SHELL_FROM_FD)
+ !ifndef $(USE_OLD_SHELL)
+diff --git a/OvmfPkg/OvmfPkgIa32X64.dsc b/OvmfPkg/OvmfPkgIa32X64.dsc
+index bf749d7..36e768d 100644
+--- a/OvmfPkg/OvmfPkgIa32X64.dsc
++++ b/OvmfPkg/OvmfPkgIa32X64.dsc
+@@ -699,7 +699,6 @@
+   MdeModulePkg/Universal/Disk/RamDiskDxe/RamDiskDxe.inf
+   MdeModulePkg/Universal/Disk/UnicodeCollation/EnglishDxe/EnglishDxe.inf
+   FatPkg/EnhancedFatDxe/Fat.inf
+-  MdeModulePkg/Universal/Disk/UdfDxe/UdfDxe.inf
+   MdeModulePkg/Bus/Scsi/ScsiBusDxe/ScsiBusDxe.inf
+   MdeModulePkg/Bus/Scsi/ScsiDiskDxe/ScsiDiskDxe.inf
+   OvmfPkg/SataControllerDxe/SataControllerDxe.inf
+diff --git a/OvmfPkg/OvmfPkgIa32X64.fdf b/OvmfPkg/OvmfPkgIa32X64.fdf
+index e4ca33e..715491c 100644
+--- a/OvmfPkg/OvmfPkgIa32X64.fdf
++++ b/OvmfPkg/OvmfPkgIa32X64.fdf
+@@ -283,7 +283,6 @@ INF  MdeModulePkg/Universal/Acpi/BootScriptExecutorDxe/BootScriptExecutorDxe.inf
+ INF  MdeModulePkg/Universal/Acpi/BootGraphicsResourceTableDxe/BootGraphicsResourceTableDxe.inf
+ 
+ INF  FatPkg/EnhancedFatDxe/Fat.inf
+-INF  MdeModulePkg/Universal/Disk/UdfDxe/UdfDxe.inf
+ 
+ !ifndef $(EXCLUDE_SHELL_FROM_FD)
+ !ifndef $(USE_OLD_SHELL)
+diff --git a/OvmfPkg/OvmfPkgX64.dsc b/OvmfPkg/OvmfPkgX64.dsc
+index b677d15..db617f7 100644
+--- a/OvmfPkg/OvmfPkgX64.dsc
++++ b/OvmfPkg/OvmfPkgX64.dsc
+@@ -697,7 +697,6 @@
+   MdeModulePkg/Universal/Disk/RamDiskDxe/RamDiskDxe.inf
+   MdeModulePkg/Universal/Disk/UnicodeCollation/EnglishDxe/EnglishDxe.inf
+   FatPkg/EnhancedFatDxe/Fat.inf
+-  MdeModulePkg/Universal/Disk/UdfDxe/UdfDxe.inf
+   MdeModulePkg/Bus/Scsi/ScsiBusDxe/ScsiBusDxe.inf
+   MdeModulePkg/Bus/Scsi/ScsiDiskDxe/ScsiDiskDxe.inf
+   OvmfPkg/SataControllerDxe/SataControllerDxe.inf
+diff --git a/OvmfPkg/OvmfPkgX64.fdf b/OvmfPkg/OvmfPkgX64.fdf
+index 3196b26..22185c2 100644
+--- a/OvmfPkg/OvmfPkgX64.fdf
++++ b/OvmfPkg/OvmfPkgX64.fdf
+@@ -283,7 +283,6 @@ INF  MdeModulePkg/Universal/Acpi/BootScriptExecutorDxe/BootScriptExecutorDxe.inf
+ INF  MdeModulePkg/Universal/Acpi/BootGraphicsResourceTableDxe/BootGraphicsResourceTableDxe.inf
+ 
+ INF  FatPkg/EnhancedFatDxe/Fat.inf
+-INF  MdeModulePkg/Universal/Disk/UdfDxe/UdfDxe.inf
+ 
+ !ifndef $(EXCLUDE_SHELL_FROM_FD)
+ !ifndef $(USE_OLD_SHELL)
+-- 
+1.8.3.1
+

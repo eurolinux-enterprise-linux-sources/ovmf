@@ -1,0 +1,101 @@
+From af22185bcff386cda85755cd69bfef0237753155 Mon Sep 17 00:00:00 2001
+From: Laszlo Ersek <lersek@redhat.com>
+Date: Tue, 28 Nov 2017 18:09:49 +0100
+Subject: [PATCH 3/3] MdeModulePkg/Core: Merge memory map after filtering
+ paging capability
+
+Message-id: <20171128170949.14548-4-lersek@redhat.com>
+Patchwork-id: 77946
+O-Subject:  [RHEL-7.5 ovmf PATCH 3/3] MdeModulePkg/Core: Merge memory map after
+	filtering paging capability
+Bugzilla: 1518308
+Acked-by: Vitaly Kuznetsov <vkuznets@redhat.com>
+Acked-by: Thomas Huth <thuth@redhat.com>
+
+From: Jian J Wang <jian.j.wang@intel.com>
+
+Once the paging capabilities were filtered out, there might be some adjacent entries
+sharing the same capabilities. It's recommended to merge those entries for the OS
+compatibility purpose.
+
+This patch makes use of existing method MergeMemoryMap() to do it. This is done by
+simply turning this method from static to extern, and call it after filter code.
+
+This patch is related to an issue described at
+   https://bugzilla.tianocore.org/show_bug.cgi?id=753
+
+This patch is also passed test of booting follow OSs:
+    Windows 10
+    Windows Server 2016
+    Fedora 26
+    Fedora 25
+
+Cc: Jiewen Yao <jiewen.yao@intel.com>
+Cc: Star Zeng <star.zeng@intel.com>
+Cc: Laszlo Ersek <lersek@redhat.com>
+Contributed-under: TianoCore Contribution Agreement 1.1
+Signed-off-by: Jian J Wang <jian.j.wang@intel.com>
+Reviewed-by: Star Zeng <star.zeng@intel.com>
+Acked-by: Laszlo Ersek <lersek@redhat.com>
+(cherry picked from commit 646127c1929a606a1a5709d78f06f2dd5494b397)
+---
+ MdeModulePkg/Core/Dxe/DxeMain.h              | 18 ++++++++++++++++++
+ MdeModulePkg/Core/Dxe/Mem/Page.c             |  2 ++
+ MdeModulePkg/Core/Dxe/Misc/PropertiesTable.c |  1 -
+ 3 files changed, 20 insertions(+), 1 deletion(-)
+
+diff --git a/MdeModulePkg/Core/Dxe/DxeMain.h b/MdeModulePkg/Core/Dxe/DxeMain.h
+index 1a0babb..07b86ba 100644
+--- a/MdeModulePkg/Core/Dxe/DxeMain.h
++++ b/MdeModulePkg/Core/Dxe/DxeMain.h
+@@ -2948,4 +2948,22 @@ ApplyMemoryProtectionPolicy (
+   IN  UINT64                Length
+   );
+ 
++/**
++  Merge continous memory map entries whose have same attributes.
++
++  @param  MemoryMap       A pointer to the buffer in which firmware places
++                          the current memory map.
++  @param  MemoryMapSize   A pointer to the size, in bytes, of the
++                          MemoryMap buffer. On input, this is the size of
++                          the current memory map.  On output,
++                          it is the size of new memory map after merge.
++  @param  DescriptorSize  Size, in bytes, of an individual EFI_MEMORY_DESCRIPTOR.
++**/
++VOID
++MergeMemoryMap (
++  IN OUT EFI_MEMORY_DESCRIPTOR  *MemoryMap,
++  IN OUT UINTN                  *MemoryMapSize,
++  IN UINTN                      DescriptorSize
++  );
++
+ #endif
+diff --git a/MdeModulePkg/Core/Dxe/Mem/Page.c b/MdeModulePkg/Core/Dxe/Mem/Page.c
+index fb149e4..c09f183 100644
+--- a/MdeModulePkg/Core/Dxe/Mem/Page.c
++++ b/MdeModulePkg/Core/Dxe/Mem/Page.c
+@@ -1846,6 +1846,8 @@ CoreGetMemoryMap (
+                                       EFI_MEMORY_XP);
+     MemoryMap = NEXT_MEMORY_DESCRIPTOR (MemoryMap, Size);
+   }
++  MergeMemoryMap (MemoryMapStart, &BufferSize, Size);
++  MemoryMapEnd = (EFI_MEMORY_DESCRIPTOR *)((UINT8 *)MemoryMapStart + BufferSize);
+ 
+   Status = EFI_SUCCESS;
+ 
+diff --git a/MdeModulePkg/Core/Dxe/Misc/PropertiesTable.c b/MdeModulePkg/Core/Dxe/Misc/PropertiesTable.c
+index 6cf5edc..75d9b14 100644
+--- a/MdeModulePkg/Core/Dxe/Misc/PropertiesTable.c
++++ b/MdeModulePkg/Core/Dxe/Misc/PropertiesTable.c
+@@ -182,7 +182,6 @@ SortMemoryMap (
+                                  it is the size of new memory map after merge.
+   @param  DescriptorSize         Size, in bytes, of an individual EFI_MEMORY_DESCRIPTOR.
+ **/
+-STATIC
+ VOID
+ MergeMemoryMap (
+   IN OUT EFI_MEMORY_DESCRIPTOR  *MemoryMap,
+-- 
+1.8.3.1
+
