@@ -1,0 +1,37 @@
+From 179df76dbb0d199bd905236e98775b4059c6502a Mon Sep 17 00:00:00 2001
+From: Laszlo Ersek <lersek@redhat.com>
+Date: Wed, 14 Oct 2015 14:07:17 +0200
+Subject: ArmVirtPkg: set early hello message (RH only)
+
+Print a friendly banner on QEMU, regardless of debug mask settings.
+
+RHBZ: https://bugzilla.redhat.com/show_bug.cgi?id=1270279
+Downstream only:
+<http://thread.gmane.org/gmane.comp.bios.edk2.devel/2996/focus=3433>.
+
+Notes about the 20160608b-988715a -> 20170228-c325e41585e3 rebase:
+
+- no changes
+
+Contributed-under: TianoCore Contribution Agreement 1.0
+Signed-off-by: Laszlo Ersek <lersek@redhat.com>
+(cherry picked from commit 5d4a15b9019728b2d96322bc679099da49916925)
+---
+ ArmVirtPkg/ArmVirtQemu.dsc | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/ArmVirtPkg/ArmVirtQemu.dsc b/ArmVirtPkg/ArmVirtQemu.dsc
+index 12070d9..a8d4878 100644
+--- a/ArmVirtPkg/ArmVirtQemu.dsc
++++ b/ArmVirtPkg/ArmVirtQemu.dsc
+@@ -100,6 +100,7 @@
+ !endif
+ 
+ [PcdsFixedAtBuild.common]
++  gArmPlatformTokenSpaceGuid.PcdEarlyHelloMessage|"UEFI firmware starting.\r\n"
+   gArmPlatformTokenSpaceGuid.PcdCoreCount|1
+ !if $(ARCH) == AARCH64
+   gArmTokenSpaceGuid.PcdVFPEnabled|1
+-- 
+1.8.3.1
+

@@ -1,0 +1,53 @@
+From dda42165a08dd48f4db3b0a2febcc81c8b5798c5 Mon Sep 17 00:00:00 2001
+From: Laszlo Ersek <lersek@redhat.com>
+Date: Wed, 11 Jun 2014 22:24:32 +0200
+Subject: target.template: select OVMF / X64 / gcc-4.8 as default (RHEL only)
+
+Select OVMF / X64 as our default build target, and select gcc-4.8 as our
+default compiler. These settings allow us to save some parameters in build
+command lines later on.
+
+Notes about the 20160608b-988715a -> 20170228-c325e41585e3 rebase:
+
+- no changes
+
+Signed-off-by: Laszlo Ersek <lersek@redhat.com>
+(cherry picked from commit 8a4cbf4b9fc172404204a2c33377855e8989fa16)
+---
+ BaseTools/Conf/target.template | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/BaseTools/Conf/target.template b/BaseTools/Conf/target.template
+index 787fc64..69b900e 100644
+--- a/BaseTools/Conf/target.template
++++ b/BaseTools/Conf/target.template
+@@ -23,7 +23,7 @@
+ #                                               build. This line is required if and only if the current
+ #                                               working directory does not contain one or more description
+ #                                               files.
+-ACTIVE_PLATFORM       = Nt32Pkg/Nt32Pkg.dsc
++ACTIVE_PLATFORM       = OvmfPkg/OvmfPkgX64.dsc
+ 
+ #  TARGET                List       Optional    Zero or more of the following: DEBUG, RELEASE, NOOPT
+ #                                               UserDefined; separated by a space character.
+@@ -47,7 +47,7 @@ TARGET                = DEBUG
+ #                                               If not specified, then all valid architectures specified
+ #                                               in the platform file, for which tools are available, will be
+ #                                               built.
+-TARGET_ARCH           = IA32
++TARGET_ARCH           = X64
+ 
+ #  TOOL_DEFINITION_FILE  Filename  Optional   Specify the name of the filename to use for specifying
+ #                                             the tools to use for the build.  If not specified,
+@@ -57,7 +57,7 @@ TOOL_CHAIN_CONF       = Conf/tools_def.txt
+ #  TAGNAME               List      Optional   Specify the name(s) of the tools_def.txt TagName to use.
+ #                                             If not specified, all applicable TagName tools will be
+ #                                             used for the build.  The list uses space character separation.
+-TOOL_CHAIN_TAG        = MYTOOLS
++TOOL_CHAIN_TAG        = GCC48
+ 
+ # MAX_CONCURRENT_THREAD_NUMBER  NUMBER  Optional  The number of concurrent threads. Recommend to set this
+ #                                                 value to one more than the number of your compurter
+-- 
+1.8.3.1
+

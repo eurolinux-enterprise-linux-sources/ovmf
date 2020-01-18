@@ -1,0 +1,60 @@
+From 3a5dc9f12362d998cca2957d36ab756e6201bd89 Mon Sep 17 00:00:00 2001
+From: Laszlo Ersek <lersek@redhat.com>
+Date: Wed, 29 Mar 2017 12:26:13 +0200
+Subject: [PATCH 01/11] ArmVirtPkg/FdtClientDxe: supplement missing EFIAPI
+ calling conv specifiers
+
+Message-id: <20170329102623.11570-2-lersek@redhat.com>
+Patchwork-id: 74571
+O-Subject:  [RHEL-7.4 ovmf PATCH 01/11] ArmVirtPkg/FdtClientDxe: supplement
+	missing EFIAPI calling conv specifiers
+Bugzilla: 1430262
+Acked-by: Andrew Jones <drjones@redhat.com>
+Acked-by: Al Stone <ahs3@redhat.com>
+Acked-by: Vitaly Kuznetsov <vkuznets@redhat.com>
+
+Add missing EFIAPI calling convention specifiers to STATIC function
+that are exposed via the FdtClientProtocol interface.
+
+Contributed-under: TianoCore Contribution Agreement 1.0
+Signed-off-by: Laszlo Ersek <lersek@redhat.com>
+
+Contributed-under: TianoCore Contribution Agreement 1.0
+Signed-off-by: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+Reviewed-by: Leif Lindholm <leif.lindholm@linaro.org>
+(cherry picked from commit eec1ba7dab8bfc774cab63523c999e5264a7b848)
+---
+ ArmVirtPkg/FdtClientDxe/FdtClientDxe.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/ArmVirtPkg/FdtClientDxe/FdtClientDxe.c b/ArmVirtPkg/FdtClientDxe/FdtClientDxe.c
+index 7cc0c44..547a29f 100644
+--- a/ArmVirtPkg/FdtClientDxe/FdtClientDxe.c
++++ b/ArmVirtPkg/FdtClientDxe/FdtClientDxe.c
+@@ -29,6 +29,7 @@ STATIC VOID  *mDeviceTreeBase;
+ 
+ STATIC
+ EFI_STATUS
++EFIAPI
+ GetNodeProperty (
+   IN  FDT_CLIENT_PROTOCOL     *This,
+   IN  INT32                   Node,
+@@ -55,6 +56,7 @@ GetNodeProperty (
+ 
+ STATIC
+ EFI_STATUS
++EFIAPI
+ SetNodeProperty (
+   IN  FDT_CLIENT_PROTOCOL     *This,
+   IN  INT32                   Node,
+@@ -267,6 +269,7 @@ FindMemoryNodeReg (
+ 
+ STATIC
+ EFI_STATUS
++EFIAPI
+ GetOrInsertChosenNode (
+   IN  FDT_CLIENT_PROTOCOL     *This,
+   OUT INT32                   *Node
+-- 
+1.8.3.1
+

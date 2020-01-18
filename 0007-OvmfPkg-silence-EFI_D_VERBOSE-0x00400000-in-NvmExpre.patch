@@ -1,0 +1,73 @@
+From 5f432837b9c60c2929b13dda1a1b488d5c3a6d2f Mon Sep 17 00:00:00 2001
+From: Laszlo Ersek <lersek@redhat.com>
+Date: Wed, 27 Jan 2016 03:05:18 +0100
+Subject: OvmfPkg: silence EFI_D_VERBOSE (0x00400000) in NvmExpressDxe (RH
+ only)
+
+NvmExpressDxe logs all BlockIo read & write calls on the EFI_D_VERBOSE
+level.
+
+Notes about the 20160608b-988715a -> 20170228-c325e41585e3 rebase:
+
+- no changes
+
+Contributed-under: TianoCore Contribution Agreement 1.0
+Signed-off-by: Laszlo Ersek <lersek@redhat.com>
+(cherry picked from commit 4cb29f6094a502dd2c65943bcb3a54899801fa60)
+---
+ OvmfPkg/OvmfPkgIa32.dsc    | 5 ++++-
+ OvmfPkg/OvmfPkgIa32X64.dsc | 5 ++++-
+ OvmfPkg/OvmfPkgX64.dsc     | 5 ++++-
+ 3 files changed, 12 insertions(+), 3 deletions(-)
+
+diff --git a/OvmfPkg/OvmfPkgIa32.dsc b/OvmfPkg/OvmfPkgIa32.dsc
+index ffb6cdc..a7effaf 100644
+--- a/OvmfPkg/OvmfPkgIa32.dsc
++++ b/OvmfPkg/OvmfPkgIa32.dsc
+@@ -662,7 +662,10 @@
+   OvmfPkg/SataControllerDxe/SataControllerDxe.inf
+   MdeModulePkg/Bus/Ata/AtaAtapiPassThru/AtaAtapiPassThru.inf
+   MdeModulePkg/Bus/Ata/AtaBusDxe/AtaBusDxe.inf
+-  MdeModulePkg/Bus/Pci/NvmExpressDxe/NvmExpressDxe.inf
++  MdeModulePkg/Bus/Pci/NvmExpressDxe/NvmExpressDxe.inf {
++    <PcdsFixedAtBuild>
++      gEfiMdePkgTokenSpaceGuid.PcdDebugPrintErrorLevel|0x8000004F
++  }
+   MdeModulePkg/Universal/HiiDatabaseDxe/HiiDatabaseDxe.inf
+   MdeModulePkg/Universal/SetupBrowserDxe/SetupBrowserDxe.inf
+   MdeModulePkg/Universal/DisplayEngineDxe/DisplayEngineDxe.inf
+diff --git a/OvmfPkg/OvmfPkgIa32X64.dsc b/OvmfPkg/OvmfPkgIa32X64.dsc
+index 6b8153d..5bb49b9 100644
+--- a/OvmfPkg/OvmfPkgIa32X64.dsc
++++ b/OvmfPkg/OvmfPkgIa32X64.dsc
+@@ -671,7 +671,10 @@
+   OvmfPkg/SataControllerDxe/SataControllerDxe.inf
+   MdeModulePkg/Bus/Ata/AtaAtapiPassThru/AtaAtapiPassThru.inf
+   MdeModulePkg/Bus/Ata/AtaBusDxe/AtaBusDxe.inf
+-  MdeModulePkg/Bus/Pci/NvmExpressDxe/NvmExpressDxe.inf
++  MdeModulePkg/Bus/Pci/NvmExpressDxe/NvmExpressDxe.inf {
++    <PcdsFixedAtBuild>
++      gEfiMdePkgTokenSpaceGuid.PcdDebugPrintErrorLevel|0x8000004F
++  }
+   MdeModulePkg/Universal/HiiDatabaseDxe/HiiDatabaseDxe.inf
+   MdeModulePkg/Universal/SetupBrowserDxe/SetupBrowserDxe.inf
+   MdeModulePkg/Universal/DisplayEngineDxe/DisplayEngineDxe.inf
+diff --git a/OvmfPkg/OvmfPkgX64.dsc b/OvmfPkg/OvmfPkgX64.dsc
+index c9f61b7..adeb8c1 100644
+--- a/OvmfPkg/OvmfPkgX64.dsc
++++ b/OvmfPkg/OvmfPkgX64.dsc
+@@ -669,7 +669,10 @@
+   OvmfPkg/SataControllerDxe/SataControllerDxe.inf
+   MdeModulePkg/Bus/Ata/AtaAtapiPassThru/AtaAtapiPassThru.inf
+   MdeModulePkg/Bus/Ata/AtaBusDxe/AtaBusDxe.inf
+-  MdeModulePkg/Bus/Pci/NvmExpressDxe/NvmExpressDxe.inf
++  MdeModulePkg/Bus/Pci/NvmExpressDxe/NvmExpressDxe.inf {
++    <PcdsFixedAtBuild>
++      gEfiMdePkgTokenSpaceGuid.PcdDebugPrintErrorLevel|0x8000004F
++  }
+   MdeModulePkg/Universal/HiiDatabaseDxe/HiiDatabaseDxe.inf
+   MdeModulePkg/Universal/SetupBrowserDxe/SetupBrowserDxe.inf
+   MdeModulePkg/Universal/DisplayEngineDxe/DisplayEngineDxe.inf
+-- 
+1.8.3.1
+

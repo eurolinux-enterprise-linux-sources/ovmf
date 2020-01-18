@@ -1,0 +1,155 @@
+From ff7f2c1d870d50525713ce1226dda74597428ef5 Mon Sep 17 00:00:00 2001
+From: Laszlo Ersek <lersek@redhat.com>
+Date: Fri, 5 May 2017 20:24:13 +0200
+Subject: [PATCH 02/10] OvmfPkg/EnrollDefaultKeys: expose CertType parameter of
+ EnrollListOfCerts (RH)
+
+Message-id: <20170505182421.19670-3-lersek@redhat.com>
+Patchwork-id: 75036
+O-Subject:  [RHEL-7.4 ovmf PATCH v2 02/10] OvmfPkg/EnrollDefaultKeys: expose
+	CertType parameter of EnrollListOfCerts (RH)
+Bugzilla: 1443351
+Acked-by: Paolo Bonzini <pbonzini@redhat.com>
+Acked-by: Vitaly Kuznetsov <vkuznets@redhat.com>
+Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+Rename EnrollListOfX509Certs() to EnrollListOfCerts(), and allow the
+caller to explicitly pass in the common type of all the certificates  that
+are being enrolled. The goal is to enable the addition of SHA256 image
+hashes next.
+
+Contributed-under: TianoCore Contribution Agreement 1.0
+Signed-off-by: Laszlo Ersek <lersek@redhat.com>
+
+RHEL-7 port notes:
+
+- Upstream status: N/A, EnrollDefaultKeys.efi is downstream only.
+
+- This patch has a small context difference relative to the one I attached
+  to the RHBZ in <https://bugzilla.redhat.com/show_bug.cgi?id=1443351#c31>
+  for Fedora's and Gerd's packages. Namely, those packages use an
+  "ExampleCert" rather than "RedHatPkKek1", as Platform Key and first Key
+  Exchange Key.
+
+Signed-off-by: Laszlo Ersek <lersek@redhat.com>
+---
+ OvmfPkg/EnrollDefaultKeys/EnrollDefaultKeys.c | 32 +++++++++++++++++----------
+ 1 file changed, 20 insertions(+), 12 deletions(-)
+
+diff --git a/OvmfPkg/EnrollDefaultKeys/EnrollDefaultKeys.c b/OvmfPkg/EnrollDefaultKeys/EnrollDefaultKeys.c
+index 0408591..04e25bc 100644
+--- a/OvmfPkg/EnrollDefaultKeys/EnrollDefaultKeys.c
++++ b/OvmfPkg/EnrollDefaultKeys/EnrollDefaultKeys.c
+@@ -603,8 +603,7 @@ typedef struct {
+ #pragma pack()
+ 
+ /**
+-  Enroll a set of DER-formatted X.509 certificates in a global variable,
+-  overwriting it.
++  Enroll a set of certificates in a global variable, overwriting it.
+ 
+   The variable will be rewritten with NV+BS+RT+AT attributes.
+ 
+@@ -613,6 +612,11 @@ typedef struct {
+   @param[in] VendorGuid    The namespace (ie. vendor GUID) of the variable to
+                            overwrite.
+ 
++  @param[in] CertType      The GUID determining the type of all the
++                           certificates in the set that is passed in. For
++                           example, gEfiCertX509Guid stands for DER-encoded
++                           X.509 certificates.
++
+   @param[in] ...           A list of
+ 
+                              IN CONST UINT8    *Cert,
+@@ -622,9 +626,9 @@ typedef struct {
+                            triplets. If the first component of a triplet is
+                            NULL, then the other two components are not
+                            accessed, and processing is terminated. The list of
+-                           X.509 certificates is enrolled in the variable
+-                           specified, overwriting it. The OwnerGuid component
+-                           identifies the agent installing the certificate.
++                           certificates is enrolled in the variable specified,
++                           overwriting it. The OwnerGuid component identifies
++                           the agent installing the certificate.
+ 
+   @retval EFI_INVALID_PARAMETER  The triplet list is empty (ie. the first Cert
+                                  value is NULL), or one of the CertSize values
+@@ -643,9 +647,10 @@ typedef struct {
+ STATIC
+ EFI_STATUS
+ EFIAPI
+-EnrollListOfX509Certs (
++EnrollListOfCerts (
+   IN CHAR16   *VariableName,
+   IN EFI_GUID *VendorGuid,
++  IN EFI_GUID *CertType,
+   ...
+   )
+ {
+@@ -664,7 +669,7 @@ EnrollListOfX509Certs (
+   // compute total size first, for UINT32 range check, and allocation
+   //
+   DataSize = sizeof *SingleHeader;
+-  VA_START (Marker, VendorGuid);
++  VA_START (Marker, CertType);
+   for (Cert = VA_ARG (Marker, CONST UINT8 *);
+        Cert != NULL;
+        Cert = VA_ARG (Marker, CONST UINT8 *)) {
+@@ -725,7 +730,7 @@ EnrollListOfX509Certs (
+   CopyGuid (&SingleHeader->CertType, &gEfiCertPkcs7Guid);
+   Position += sizeof *SingleHeader;
+ 
+-  VA_START (Marker, VendorGuid);
++  VA_START (Marker, CertType);
+   for (Cert = VA_ARG (Marker, CONST UINT8 *);
+        Cert != NULL;
+        Cert = VA_ARG (Marker, CONST UINT8 *)) {
+@@ -736,7 +741,7 @@ EnrollListOfX509Certs (
+     OwnerGuid = VA_ARG (Marker, CONST EFI_GUID *);
+ 
+     RepeatingHeader = (REPEATING_HEADER *)Position;
+-    CopyGuid (&RepeatingHeader->SignatureType, &gEfiCertX509Guid);
++    CopyGuid (&RepeatingHeader->SignatureType, CertType);
+     RepeatingHeader->SignatureListSize   =
+       (UINT32)(sizeof *RepeatingHeader + CertSize);
+     RepeatingHeader->SignatureHeaderSize = 0;
+@@ -901,9 +906,10 @@ ShellAppMain (
+     }
+   }
+ 
+-  Status = EnrollListOfX509Certs (
++  Status = EnrollListOfCerts (
+              EFI_IMAGE_SECURITY_DATABASE,
+              &gEfiImageSecurityDatabaseGuid,
++             &gEfiCertX509Guid,
+              MicrosoftPCA,    sizeof MicrosoftPCA,    &mMicrosoftOwnerGuid,
+              MicrosoftUefiCA, sizeof MicrosoftUefiCA, &mMicrosoftOwnerGuid,
+              NULL);
+@@ -911,9 +917,10 @@ ShellAppMain (
+     return 1;
+   }
+ 
+-  Status = EnrollListOfX509Certs (
++  Status = EnrollListOfCerts (
+              EFI_KEY_EXCHANGE_KEY_NAME,
+              &gEfiGlobalVariableGuid,
++             &gEfiCertX509Guid,
+              RedHatPkKek1, sizeof RedHatPkKek1, &gEfiCallerIdGuid,
+              MicrosoftKEK, sizeof MicrosoftKEK, &mMicrosoftOwnerGuid,
+              NULL);
+@@ -921,9 +928,10 @@ ShellAppMain (
+     return 1;
+   }
+ 
+-  Status = EnrollListOfX509Certs (
++  Status = EnrollListOfCerts (
+              EFI_PLATFORM_KEY_NAME,
+              &gEfiGlobalVariableGuid,
++             &gEfiCertX509Guid,
+              RedHatPkKek1, sizeof RedHatPkKek1, &gEfiGlobalVariableGuid,
+              NULL);
+   if (EFI_ERROR (Status)) {
+-- 
+1.8.3.1
+

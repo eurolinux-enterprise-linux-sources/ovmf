@@ -1,0 +1,141 @@
+From 93355ebdfb5306697ade5e6a77496573b86e4c16 Mon Sep 17 00:00:00 2001
+From: Laszlo Ersek <lersek@redhat.com>
+Date: Wed, 29 Mar 2017 12:26:20 +0200
+Subject: [PATCH 08/11] ArmVirtPkg: enable AcpiTableDxe and
+ EFI_ACPI_TABLE_PROTOCOL dynamically
+
+Message-id: <20170329102623.11570-9-lersek@redhat.com>
+Patchwork-id: 74574
+O-Subject:  [RHEL-7.4 ovmf PATCH 08/11] ArmVirtPkg: enable AcpiTableDxe and
+	EFI_ACPI_TABLE_PROTOCOL dynamically
+Bugzilla: 1430262
+Acked-by: Andrew Jones <drjones@redhat.com>
+Acked-by: Al Stone <ahs3@redhat.com>
+Acked-by: Vitaly Kuznetsov <vkuznets@redhat.com>
+
+In this patch, the ACPI protocol / driver chain is enabled dynamically,
+when appropriate. This is being done in one larger patch, because
+ArmVirt.dsc.inc, where AcpiTableDxe is built, is used by all the platform
+DSCs.
+
+No change in behavior should be observable after this patch on any
+ArmVirtPkg platform.
+
+Cc: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+Cc: Leif Lindholm <leif.lindholm@linaro.org>
+Contributed-under: TianoCore Contribution Agreement 1.0
+Signed-off-by: Laszlo Ersek <lersek@redhat.com>
+Reviewed-by: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+(cherry picked from commit 3a2c1548fe2df4b0b067671e2025da6372063218)
+
+RHEL-7 backport notes:
+
+The following files are irrelevant (never built) down-stream:
+- ArmVirtQemuKernel.dsc
+- ArmVirtXen.dsc
+- ArmVirtXen.fdf
+
+I'm keeping those hunks in the backport (i.e., opting for a verbatim
+cherry-pick, code-wise) only to avoid future conflicts.
+
+In fact this backport series (from "ArmVirtPkg/FdtClientDxe: supplement
+missing EFIAPI calling conv specifiers" to "ArmVirtPkg: remove
+PURE_ACPI_BOOT_ENABLE and PcdPureAcpiBoot", both ends inclusive) omits two
+-- well-separated -- upstream patches that would only be relevant for Xen
+(namely 6244c8924e72 and a61418344018). As a consequence, ArmVirtXen.dsc
+wouldn't even build after this patch.
+
+I'm skipping 6244c8924e72 and a61418344018 because they are well
+separated, hence unlikely to cause future conflicts, and because in the
+RHEL kernels we generally avoid patching code that is not built.
+
+Signed-off-by: Laszlo Ersek <lersek@redhat.com>
+---
+ ArmVirtPkg/ArmVirt.dsc.inc           | 9 ++++++++-
+ ArmVirtPkg/ArmVirtQemu.dsc           | 1 +
+ ArmVirtPkg/ArmVirtQemuFvMain.fdf.inc | 1 +
+ ArmVirtPkg/ArmVirtQemuKernel.dsc     | 1 +
+ ArmVirtPkg/ArmVirtXen.dsc            | 1 +
+ ArmVirtPkg/ArmVirtXen.fdf            | 1 +
+ 6 files changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/ArmVirtPkg/ArmVirt.dsc.inc b/ArmVirtPkg/ArmVirt.dsc.inc
+index d40ea69..b682d3d 100644
+--- a/ArmVirtPkg/ArmVirt.dsc.inc
++++ b/ArmVirtPkg/ArmVirt.dsc.inc
+@@ -431,5 +431,12 @@
+   #
+   # ACPI Support
+   #
+-  MdeModulePkg/Universal/Acpi/AcpiTableDxe/AcpiTableDxe.inf
++  MdeModulePkg/Universal/Acpi/AcpiTableDxe/AcpiTableDxe.inf {
++    <LibraryClasses>
++      NULL|EmbeddedPkg/Library/PlatformHasAcpiLib/PlatformHasAcpiLib.inf
++  }
++
++  #
++  # EBC support
++  #
+   MdeModulePkg/Universal/EbcDxe/EbcDxe.inf
+diff --git a/ArmVirtPkg/ArmVirtQemu.dsc b/ArmVirtPkg/ArmVirtQemu.dsc
+index a8d4878..7ff0dde 100644
+--- a/ArmVirtPkg/ArmVirtQemu.dsc
++++ b/ArmVirtPkg/ArmVirtQemu.dsc
+@@ -395,6 +395,7 @@
+   #
+   # ACPI Support
+   #
++  ArmVirtPkg/PlatformHasAcpiDtDxe/PlatformHasAcpiDtDxe.inf
+   MdeModulePkg/Universal/Acpi/BootGraphicsResourceTableDxe/BootGraphicsResourceTableDxe.inf
+   OvmfPkg/AcpiPlatformDxe/QemuFwCfgAcpiPlatformDxe.inf {
+     <LibraryClasses>
+diff --git a/ArmVirtPkg/ArmVirtQemuFvMain.fdf.inc b/ArmVirtPkg/ArmVirtQemuFvMain.fdf.inc
+index 2b47599..ba8741c 100644
+--- a/ArmVirtPkg/ArmVirtQemuFvMain.fdf.inc
++++ b/ArmVirtPkg/ArmVirtQemuFvMain.fdf.inc
+@@ -144,6 +144,7 @@ READ_LOCK_STATUS   = TRUE
+   #
+   # ACPI Support
+   #
++  INF ArmVirtPkg/PlatformHasAcpiDtDxe/PlatformHasAcpiDtDxe.inf
+   INF MdeModulePkg/Universal/Acpi/AcpiTableDxe/AcpiTableDxe.inf
+   INF MdeModulePkg/Universal/Acpi/BootGraphicsResourceTableDxe/BootGraphicsResourceTableDxe.inf
+   INF OvmfPkg/AcpiPlatformDxe/QemuFwCfgAcpiPlatformDxe.inf
+diff --git a/ArmVirtPkg/ArmVirtQemuKernel.dsc b/ArmVirtPkg/ArmVirtQemuKernel.dsc
+index 59a4a15..9267640 100644
+--- a/ArmVirtPkg/ArmVirtQemuKernel.dsc
++++ b/ArmVirtPkg/ArmVirtQemuKernel.dsc
+@@ -378,6 +378,7 @@
+   #
+   # ACPI Support
+   #
++  ArmVirtPkg/PlatformHasAcpiDtDxe/PlatformHasAcpiDtDxe.inf
+   MdeModulePkg/Universal/Acpi/BootGraphicsResourceTableDxe/BootGraphicsResourceTableDxe.inf
+   OvmfPkg/AcpiPlatformDxe/QemuFwCfgAcpiPlatformDxe.inf {
+     <LibraryClasses>
+diff --git a/ArmVirtPkg/ArmVirtXen.dsc b/ArmVirtPkg/ArmVirtXen.dsc
+index 3422d1e..679ca67 100644
+--- a/ArmVirtPkg/ArmVirtXen.dsc
++++ b/ArmVirtPkg/ArmVirtXen.dsc
+@@ -222,5 +222,6 @@
+   # ACPI support
+   #
+ !if $(ARCH) == AARCH64
++  ArmVirtPkg/XenPlatformHasAcpiDtDxe/XenPlatformHasAcpiDtDxe.inf
+   ArmVirtPkg/XenAcpiPlatformDxe/XenAcpiPlatformDxe.inf
+ !endif
+diff --git a/ArmVirtPkg/ArmVirtXen.fdf b/ArmVirtPkg/ArmVirtXen.fdf
+index c997251..aaae975 100644
+--- a/ArmVirtPkg/ArmVirtXen.fdf
++++ b/ArmVirtPkg/ArmVirtXen.fdf
+@@ -184,6 +184,7 @@ READ_LOCK_STATUS   = TRUE
+   # ACPI support
+   #
+ !if $(ARCH) == AARCH64
++  INF ArmVirtPkg/XenPlatformHasAcpiDtDxe/XenPlatformHasAcpiDtDxe.inf
+   INF MdeModulePkg/Universal/Acpi/AcpiTableDxe/AcpiTableDxe.inf
+   INF ArmVirtPkg/XenAcpiPlatformDxe/XenAcpiPlatformDxe.inf
+ 
+-- 
+1.8.3.1
+

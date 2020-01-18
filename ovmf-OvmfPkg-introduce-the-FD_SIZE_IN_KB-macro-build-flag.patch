@@ -1,0 +1,178 @@
+From 9d380c4588ef4dfe855029ea27384ec11ac87f53 Mon Sep 17 00:00:00 2001
+From: Laszlo Ersek <lersek@redhat.com>
+Date: Fri, 5 May 2017 20:24:15 +0200
+Subject: [PATCH 04/10] OvmfPkg: introduce the FD_SIZE_IN_KB macro / build flag
+
+Message-id: <20170505182421.19670-5-lersek@redhat.com>
+Patchwork-id: 75032
+O-Subject:  [RHEL-7.4 ovmf PATCH v2 04/10] OvmfPkg: introduce the FD_SIZE_IN_KB
+	macro / build flag
+Bugzilla: 1443351
+Acked-by: Paolo Bonzini <pbonzini@redhat.com>
+Acked-by: Vitaly Kuznetsov <vkuznets@redhat.com>
+Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+FD_SIZE_xMB defines have existed for flash size selection. They can be
+passed as "-D FD_SIZE_xMB" on the command line. Passing multiple of them
+at the same time has never been supported; earlier settings on the command
+line cannot be overridden.
+
+Introduce the integer valued FD_SIZE_IN_KB macro, which provides the
+following improvements:
+
+- several instances of it are permitted on the command line, with the last
+  one taking effect,
+
+- conditional statements in the DSC and FDF files need only check a single
+  macro, and multiple values can be checked in a single !if with the ||
+  operator,
+
+- nested !ifdef / !else ladders can be replaced with flat equality tests,
+
+- in the future, flash sizes can be expressed with a finer than MB
+  granularity, if necessary.
+
+For now, we're going to preserve the FD_SIZE_xMB defines as convenience
+wrappers for FD_SIZE_IN_KB.
+
+FD_SIZE_IN_KB is being added to the DSC files because this way we can
+depend on it in both the DSC and FDF files.
+
+Cc: Gary Ching-Pang Lin <glin@suse.com>
+Cc: Jordan Justen <jordan.l.justen@intel.com>
+Contributed-under: TianoCore Contribution Agreement 1.0
+Signed-off-by: Laszlo Ersek <lersek@redhat.com>
+Reviewed-by: Jordan Justen <jordan.l.justen@intel.com>
+(cherry picked from commit 210270730c0e29d3b3381b519017ec5b3f347144)
+---
+ OvmfPkg/OvmfPkg.fdf.inc    | 14 +++-----------
+ OvmfPkg/OvmfPkgIa32.dsc    | 15 +++++++++++++++
+ OvmfPkg/OvmfPkgIa32X64.dsc | 15 +++++++++++++++
+ OvmfPkg/OvmfPkgX64.dsc     | 15 +++++++++++++++
+ 4 files changed, 48 insertions(+), 11 deletions(-)
+
+diff --git a/OvmfPkg/OvmfPkg.fdf.inc b/OvmfPkg/OvmfPkg.fdf.inc
+index 9cc0578..f12d61c 100644
+--- a/OvmfPkg/OvmfPkg.fdf.inc
++++ b/OvmfPkg/OvmfPkg.fdf.inc
+@@ -15,18 +15,11 @@
+ #
+ ##
+ 
+-#
+-# Default flash size is 2MB.
+-#
+-# Defining FD_SIZE_1MB on the build command line can override this.
+-#
+-
+ DEFINE BLOCK_SIZE        = 0x1000
+ DEFINE VARS_SIZE         = 0x20000
+ DEFINE VARS_BLOCKS       = 0x20
+ 
+-!ifdef $(FD_SIZE_1MB)
+-
++!if $(FD_SIZE_IN_KB) == 1024
+ DEFINE FW_BASE_ADDRESS   = 0xFFF00000
+ DEFINE FW_SIZE           = 0x00100000
+ DEFINE FW_BLOCKS         = 0x100
+@@ -36,9 +29,9 @@ DEFINE CODE_BLOCKS       = 0xE0
+ DEFINE FVMAIN_SIZE       = 0x000CC000
+ DEFINE SECFV_OFFSET      = 0x000EC000
+ DEFINE SECFV_SIZE        = 0x14000
++!endif
+ 
+-!else
+-
++!if $(FD_SIZE_IN_KB) == 2048
+ DEFINE FW_BASE_ADDRESS   = 0xFFE00000
+ DEFINE FW_SIZE           = 0x00200000
+ DEFINE FW_BLOCKS         = 0x200
+@@ -48,7 +41,6 @@ DEFINE CODE_BLOCKS       = 0x1E0
+ DEFINE FVMAIN_SIZE       = 0x001AC000
+ DEFINE SECFV_OFFSET      = 0x001CC000
+ DEFINE SECFV_SIZE        = 0x34000
+-
+ !endif
+ 
+ SET gUefiOvmfPkgTokenSpaceGuid.PcdOvmfFdBaseAddress     = $(FW_BASE_ADDRESS)
+diff --git a/OvmfPkg/OvmfPkgIa32.dsc b/OvmfPkg/OvmfPkgIa32.dsc
+index 3f13279..d329150 100644
+--- a/OvmfPkg/OvmfPkgIa32.dsc
++++ b/OvmfPkg/OvmfPkgIa32.dsc
+@@ -40,6 +40,21 @@
+   DEFINE SMM_REQUIRE             = FALSE
+   DEFINE TLS_ENABLE              = FALSE
+ 
++  #
++  # Flash size selection. Setting FD_SIZE_IN_KB on the command line directly to
++  # one of the supported values, in place of any of the convenience macros, is
++  # permitted.
++  #
++!ifdef $(FD_SIZE_1MB)
++  DEFINE FD_SIZE_IN_KB           = 1024
++!else
++!ifdef $(FD_SIZE_2MB)
++  DEFINE FD_SIZE_IN_KB           = 2048
++!else
++  DEFINE FD_SIZE_IN_KB           = 2048
++!endif
++!endif
++
+ [BuildOptions]
+   GCC:*_UNIXGCC_*_CC_FLAGS             = -DMDEPKG_NDEBUG
+   GCC:RELEASE_*_*_CC_FLAGS             = -DMDEPKG_NDEBUG
+diff --git a/OvmfPkg/OvmfPkgIa32X64.dsc b/OvmfPkg/OvmfPkgIa32X64.dsc
+index cf31696..7b694d9 100644
+--- a/OvmfPkg/OvmfPkgIa32X64.dsc
++++ b/OvmfPkg/OvmfPkgIa32X64.dsc
+@@ -40,6 +40,21 @@
+   DEFINE SMM_REQUIRE             = FALSE
+   DEFINE TLS_ENABLE              = FALSE
+ 
++  #
++  # Flash size selection. Setting FD_SIZE_IN_KB on the command line directly to
++  # one of the supported values, in place of any of the convenience macros, is
++  # permitted.
++  #
++!ifdef $(FD_SIZE_1MB)
++  DEFINE FD_SIZE_IN_KB           = 1024
++!else
++!ifdef $(FD_SIZE_2MB)
++  DEFINE FD_SIZE_IN_KB           = 2048
++!else
++  DEFINE FD_SIZE_IN_KB           = 2048
++!endif
++!endif
++
+ [BuildOptions]
+   GCC:*_UNIXGCC_*_CC_FLAGS             = -DMDEPKG_NDEBUG
+   GCC:RELEASE_*_*_CC_FLAGS             = -DMDEPKG_NDEBUG
+diff --git a/OvmfPkg/OvmfPkgX64.dsc b/OvmfPkg/OvmfPkgX64.dsc
+index cf20651..6bb0de2 100644
+--- a/OvmfPkg/OvmfPkgX64.dsc
++++ b/OvmfPkg/OvmfPkgX64.dsc
+@@ -40,6 +40,21 @@
+   DEFINE SMM_REQUIRE             = FALSE
+   DEFINE TLS_ENABLE              = FALSE
+ 
++  #
++  # Flash size selection. Setting FD_SIZE_IN_KB on the command line directly to
++  # one of the supported values, in place of any of the convenience macros, is
++  # permitted.
++  #
++!ifdef $(FD_SIZE_1MB)
++  DEFINE FD_SIZE_IN_KB           = 1024
++!else
++!ifdef $(FD_SIZE_2MB)
++  DEFINE FD_SIZE_IN_KB           = 2048
++!else
++  DEFINE FD_SIZE_IN_KB           = 2048
++!endif
++!endif
++
+ [BuildOptions]
+   GCC:*_UNIXGCC_*_CC_FLAGS             = -DMDEPKG_NDEBUG
+   GCC:RELEASE_*_*_CC_FLAGS             = -DMDEPKG_NDEBUG
+-- 
+1.8.3.1
+

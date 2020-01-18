@@ -1,0 +1,79 @@
+From 6307b71a3ae5b35a8846ff535500b9787aaee719 Mon Sep 17 00:00:00 2001
+From: Laszlo Ersek <lersek@redhat.com>
+Date: Wed, 29 Mar 2017 12:26:23 +0200
+Subject: [PATCH 11/11] ArmVirtPkg: remove PURE_ACPI_BOOT_ENABLE and
+ PcdPureAcpiBoot
+
+Message-id: <20170329102623.11570-12-lersek@redhat.com>
+Patchwork-id: 74579
+O-Subject:  [RHEL-7.4 ovmf PATCH 11/11] ArmVirtPkg: remove PURE_ACPI_BOOT_ENABLE
+	and PcdPureAcpiBoot
+Bugzilla: 1430262
+Acked-by: Andrew Jones <drjones@redhat.com>
+Acked-by: Al Stone <ahs3@redhat.com>
+Acked-by: Vitaly Kuznetsov <vkuznets@redhat.com>
+
+The build flag and the FeaturePCD have no effect any longer, remove them.
+
+Cc: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+Cc: Leif Lindholm <leif.lindholm@linaro.org>
+Contributed-under: TianoCore Contribution Agreement 1.0
+Signed-off-by: Laszlo Ersek <lersek@redhat.com>
+Reviewed-by: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+(cherry picked from commit 89ad870fbff03a511102c73773000f2bea2017d2)
+
+RHEL-7 backport notes:
+
+Trivial context difference due to downstream-only commit 179df76dbb0d
+("ArmVirtPkg: set early hello message (RH only)", 2015-10-14)
+
+Signed-off-by: Laszlo Ersek <lersek@redhat.com>
+---
+ ArmVirtPkg/ArmVirtPkg.dec  | 10 ----------
+ ArmVirtPkg/ArmVirtQemu.dsc |  5 -----
+ 2 files changed, 15 deletions(-)
+
+diff --git a/ArmVirtPkg/ArmVirtPkg.dec b/ArmVirtPkg/ArmVirtPkg.dec
+index a5ec421..efe83a3 100644
+--- a/ArmVirtPkg/ArmVirtPkg.dec
++++ b/ArmVirtPkg/ArmVirtPkg.dec
+@@ -58,13 +58,3 @@
+   # EFI_VT_100_GUID.
+   #
+   gArmVirtTokenSpaceGuid.PcdTerminalTypeGuidBuffer|{0x65, 0x60, 0xA6, 0xDF, 0x19, 0xB4, 0xD3, 0x11, 0x9A, 0x2D, 0x00, 0x90, 0x27, 0x3F, 0xC1, 0x4D}|VOID*|0x00000007
+-
+-[PcdsFeatureFlag]
+-  #
+-  # Pure ACPI boot
+-  #
+-  # Inhibit installation of the FDT as a configuration table if this feature
+-  # PCD is TRUE. Otherwise, the OS is presented with both a DT and an ACPI
+-  # description of the platform, and it is up to the OS to choose.
+-  #
+-  gArmVirtTokenSpaceGuid.PcdPureAcpiBoot|FALSE|BOOLEAN|0x0000000a
+diff --git a/ArmVirtPkg/ArmVirtQemu.dsc b/ArmVirtPkg/ArmVirtQemu.dsc
+index 7ff0dde..d8c97d9 100644
+--- a/ArmVirtPkg/ArmVirtQemu.dsc
++++ b/ArmVirtPkg/ArmVirtQemu.dsc
+@@ -34,7 +34,6 @@
+   # -D FLAG=VALUE
+   #
+   DEFINE SECURE_BOOT_ENABLE      = FALSE
+-  DEFINE PURE_ACPI_BOOT_ENABLE   = FALSE
+ 
+ !include ArmVirtPkg/ArmVirt.dsc.inc
+ 
+@@ -95,10 +94,6 @@
+   gEfiMdeModulePkgTokenSpaceGuid.PcdConOutGopSupport|TRUE
+   gEfiMdeModulePkgTokenSpaceGuid.PcdConOutUgaSupport|FALSE
+ 
+-!if $(PURE_ACPI_BOOT_ENABLE) == TRUE
+-  gArmVirtTokenSpaceGuid.PcdPureAcpiBoot|TRUE
+-!endif
+-
+ [PcdsFixedAtBuild.common]
+   gArmPlatformTokenSpaceGuid.PcdEarlyHelloMessage|"UEFI firmware starting.\r\n"
+   gArmPlatformTokenSpaceGuid.PcdCoreCount|1
+-- 
+1.8.3.1
+

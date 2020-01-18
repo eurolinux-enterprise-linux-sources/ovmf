@@ -1,0 +1,64 @@
+From b9f5c9811c69ac7b8335f807ee4aec180f4abc72 Mon Sep 17 00:00:00 2001
+From: Laszlo Ersek <lersek@redhat.com>
+Date: Mon, 20 Mar 2017 18:37:14 +0100
+Subject: [PATCH] MdeModulePkg/Core/Dxe: downgrade "CodeSegmentCount is 0" msg
+ to DEBUG_WARN
+
+Message-id: <20170320173714.16648-2-lersek@redhat.com>
+Patchwork-id: 74374
+O-Subject:  [RHEL-7.4 ovmf PATCH 1/1] MdeModulePkg/Core/Dxe: downgrade
+	"CodeSegmentCount is 0" msg to DEBUG_WARN
+Bugzilla: 1433428
+Acked-by: Thomas Huth <thuth@redhat.com>
+Acked-by: Andrew Jones <drjones@redhat.com>
+Acked-by: Wei Huang <wei@redhat.com>
+
+UEFI executables that consist of a single read+write+exec PE/COFF section
+trigger this message, but such a binary layout isn't actually an error.
+The image can be launched alright, only image protection cannot be applied
+to it fully.
+
+One example that elicits the message is (some) Linux kernels (with the EFI
+stub of course).
+
+Cc: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+Cc: Feng Tian <feng.tian@intel.com>
+Cc: Jiewen Yao <jiewen.yao@intel.com>
+Cc: Star Zeng <star.zeng@intel.com>
+Contributed-under: TianoCore Contribution Agreement 1.0
+Signed-off-by: Laszlo Ersek <lersek@redhat.com>
+Acked-by: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+Reviewed-by: Jiewen Yao <jiewen.yao@intel.com>
+(cherry picked from commit 38b15ebe4fd5888493131d30fc31833a5e9a7d36)
+---
+ MdeModulePkg/Core/Dxe/Misc/MemoryProtection.c | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/MdeModulePkg/Core/Dxe/Misc/MemoryProtection.c b/MdeModulePkg/Core/Dxe/Misc/MemoryProtection.c
+index 46d8846..9509913 100644
+--- a/MdeModulePkg/Core/Dxe/Misc/MemoryProtection.c
++++ b/MdeModulePkg/Core/Dxe/Misc/MemoryProtection.c
+@@ -572,10 +572,18 @@ ProtectUefiImageCommon (
+   }
+ 
+   if (ImageRecord->CodeSegmentCount == 0) {
+-    DEBUG ((DEBUG_ERROR, "!!!!!!!!  ProtectUefiImageCommon - CodeSegmentCount is 0  !!!!!!!!\n"));
++    //
++    // If a UEFI executable consists of a single read+write+exec PE/COFF
++    // section, that isn't actually an error. The image can be launched
++    // alright, only image protection cannot be applied to it fully.
++    //
++    // One example that elicits this is (some) Linux kernels (with the EFI stub
++    // of course).
++    //
++    DEBUG ((DEBUG_WARN, "!!!!!!!!  ProtectUefiImageCommon - CodeSegmentCount is 0  !!!!!!!!\n"));
+     PdbPointer = PeCoffLoaderGetPdbPointer ((VOID*) (UINTN) ImageAddress);
+     if (PdbPointer != NULL) {
+-      DEBUG ((DEBUG_ERROR, "!!!!!!!!  Image - %a  !!!!!!!!\n", PdbPointer));
++      DEBUG ((DEBUG_WARN, "!!!!!!!!  Image - %a  !!!!!!!!\n", PdbPointer));
+     }
+     goto Finish;
+   }
+-- 
+1.8.3.1
+

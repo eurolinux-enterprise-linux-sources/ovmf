@@ -1,0 +1,81 @@
+From ce2401c92a9340ca7ca8959dbd118fd496d84ef3 Mon Sep 17 00:00:00 2001
+From: Laszlo Ersek <lersek@redhat.com>
+Date: Wed, 29 Mar 2017 12:26:14 +0200
+Subject: [PATCH 02/11] ArmVirtPkg/ArmVirtPL031FdtClientLib: unconditionally
+ disable DT node
+
+Message-id: <20170329102623.11570-3-lersek@redhat.com>
+Patchwork-id: 74569
+O-Subject:  [RHEL-7.4 ovmf PATCH 02/11] ArmVirtPkg/ArmVirtPL031FdtClientLib:
+	unconditionally disable DT node
+Bugzilla: 1430262
+Acked-by: Andrew Jones <drjones@redhat.com>
+Acked-by: Al Stone <ahs3@redhat.com>
+Acked-by: Vitaly Kuznetsov <vkuznets@redhat.com>
+
+From: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+
+Disable the PL031 RTC DT node unconditionally rather than only when
+the DT will be exposed to the OS. This allows us to defer the decision
+whether to expose it to the OS to a later time without creating an
+additional dependency on the FDT client code by the RTC driver.
+
+Contributed-under: TianoCore Contribution Agreement 1.0
+Signed-off-by: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+Reviewed-by: Leif Lindholm <leif.lindholm@linaro.org>
+Reviewed-by: Laszlo Ersek <lersek@redhat.com>
+(cherry picked from commit d5256ba932edd345fc1ca36bffa4dc3e5867c6aa)
+---
+ .../ArmVirtPL031FdtClientLib.c                     | 22 ++++++++++------------
+ .../ArmVirtPL031FdtClientLib.inf                   |  3 ---
+ 2 files changed, 10 insertions(+), 15 deletions(-)
+
+diff --git a/ArmVirtPkg/Library/ArmVirtPL031FdtClientLib/ArmVirtPL031FdtClientLib.c b/ArmVirtPkg/Library/ArmVirtPL031FdtClientLib/ArmVirtPL031FdtClientLib.c
+index 82de7a5..d168424 100644
+--- a/ArmVirtPkg/Library/ArmVirtPL031FdtClientLib/ArmVirtPL031FdtClientLib.c
++++ b/ArmVirtPkg/Library/ArmVirtPL031FdtClientLib/ArmVirtPL031FdtClientLib.c
+@@ -66,18 +66,16 @@ ArmVirtPL031FdtClientLibConstructor (
+ 
+   DEBUG ((EFI_D_INFO, "Found PL031 RTC @ 0x%Lx\n", RegBase));
+ 
+-  if (!FeaturePcdGet (PcdPureAcpiBoot)) {
+-    //
+-    // UEFI takes ownership of the RTC hardware, and exposes its functionality
+-    // through the UEFI Runtime Services GetTime, SetTime, etc. This means we
+-    // need to disable it in the device tree to prevent the OS from attaching
+-    // its device driver as well.
+-    //
+-    Status = FdtClient->SetNodeProperty (FdtClient, Node, "status",
+-                          "disabled", sizeof ("disabled"));
+-    if (EFI_ERROR (Status)) {
+-        DEBUG ((EFI_D_WARN, "Failed to set PL031 status to 'disabled'\n"));
+-    }
++  //
++  // UEFI takes ownership of the RTC hardware, and exposes its functionality
++  // through the UEFI Runtime Services GetTime, SetTime, etc. This means we
++  // need to disable it in the device tree to prevent the OS from attaching
++  // its device driver as well.
++  //
++  Status = FdtClient->SetNodeProperty (FdtClient, Node, "status",
++                        "disabled", sizeof ("disabled"));
++  if (EFI_ERROR (Status)) {
++      DEBUG ((EFI_D_WARN, "Failed to set PL031 status to 'disabled'\n"));
+   }
+ 
+   return EFI_SUCCESS;
+diff --git a/ArmVirtPkg/Library/ArmVirtPL031FdtClientLib/ArmVirtPL031FdtClientLib.inf b/ArmVirtPkg/Library/ArmVirtPL031FdtClientLib/ArmVirtPL031FdtClientLib.inf
+index 32dbff6..3421936 100644
+--- a/ArmVirtPkg/Library/ArmVirtPL031FdtClientLib/ArmVirtPL031FdtClientLib.inf
++++ b/ArmVirtPkg/Library/ArmVirtPL031FdtClientLib/ArmVirtPL031FdtClientLib.inf
+@@ -42,8 +42,5 @@
+ [Pcd]
+   gArmPlatformTokenSpaceGuid.PcdPL031RtcBase
+ 
+-[FeaturePcd]
+-  gArmVirtTokenSpaceGuid.PcdPureAcpiBoot
+-
+ [Depex]
+   gFdtClientProtocolGuid
+-- 
+1.8.3.1
+

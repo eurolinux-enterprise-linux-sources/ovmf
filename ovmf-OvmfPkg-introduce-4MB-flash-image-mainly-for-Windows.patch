@@ -1,0 +1,299 @@
+From b151979f34a0bf4b85569d3f8fa4e66034dbf741 Mon Sep 17 00:00:00 2001
+From: Laszlo Ersek <lersek@redhat.com>
+Date: Fri, 5 May 2017 20:24:17 +0200
+Subject: [PATCH 06/10] OvmfPkg: introduce 4MB flash image (mainly) for Windows
+ HCK
+
+Message-id: <20170505182421.19670-7-lersek@redhat.com>
+Patchwork-id: 75037
+O-Subject:  [RHEL-7.4 ovmf PATCH v2 06/10] OvmfPkg: introduce 4MB flash image
+	(mainly) for Windows HCK
+Bugzilla: 1443351
+Acked-by: Paolo Bonzini <pbonzini@redhat.com>
+Acked-by: Vitaly Kuznetsov <vkuznets@redhat.com>
+Acked-by: Miroslav Rezanina <mrezanin@redhat.com>
+
+The "Confirm64KilobytesOfUnauthenticatedVariableStorage" test case of the
+Secure Boot Logo Test ("Microsoft.UefiSecureBootLogo.Tests") suite in the
+Microsoft Hardware Certification Kit expects to be able to populate the
+variable store up to roughly 64 KB, with a series of 1 KB sized,
+unauthenticated variables. OVMF's current live varstore area is too small
+for this: 56 KB.
+
+Introduce the FD_SIZE_4MB build macro (equivalently, FD_SIZE_IN_KB=4096),
+which
+
+- enlarges the full flash image to 4MB -- QEMU supports up to 8MB, see
+  FLASH_MAP_BASE_MIN in "hw/i386/pc_sysfw.c" --,
+
+- inside that, grows the varstore area / pflash chip to 528 KB, and within
+  it, the live area from 56 KB to 256 KB.
+
+Importantly, a firmware binary built with -D FD_SIZE_4MB will *not* be
+compatible with a variable store that originates from a variable store
+template built *without* -D FD_SIZE_4MB. This is the reason for the large
+increase, as every such change breaks compatibility between a new firmware
+binary and old varstore files.
+
+Enlarging the varstore does not impact the performance of normal
+operations, as we keep the varstore block size 4KB. The performance of
+reclaim is affected, but that is expected (since reclaim has to rework the
+full live area). And, reclaim occurs proportionally less frequently.
+
+While at it, the FVMAIN_COMPACT volume (with the compressed FFS file in
+it) is also enlarged significantly, so that we have plenty of room for
+future DXEFV (and perhaps PEIFV) increments -- DXEFV has been growing
+steadily, and that increase shows through compression too. Right now the
+PEIFV and DXEFV volumes need no resizing.
+
+Here's a summary:
+
+  Description                Compression type                Size [KB]
+  -------------------------  -----------------  ----------------------
+  Non-volatile data storage  open-coded binary    128 ->   528 ( +400)
+                               data
+    Variable store                                 56 ->   256 ( +200)
+    Event log                                       4 ->     4 (   +0)
+    Working block                                   4 ->     4 (   +0)
+    Spare area                                     64 ->   264 ( +200)
+
+  FVMAIN_COMPACT             uncompressed        1712 ->  3360 (+1648)
+    FV FFS file              LZMA compressed
+      PEIFV                  uncompressed         896 ->   896 (   +0)
+        individual PEI       uncompressed
+          modules
+      DXEFV                  uncompressed       10240 -> 10240 (   +0)
+        individual DXE       uncompressed
+          modules
+
+  SECFV                      uncompressed         208 ->   208 (   +0)
+    SEC driver
+    reset vector code
+
+For now, the 2MB flash image remains the default.
+
+Cc: Gary Ching-Pang Lin <glin@suse.com>
+Cc: Jordan Justen <jordan.l.justen@intel.com>
+Contributed-under: TianoCore Contribution Agreement 1.0
+Signed-off-by: Laszlo Ersek <lersek@redhat.com>
+Reviewed-by: Jordan Justen <jordan.l.justen@intel.com>
+(cherry picked from commit b24fca05751f8222acf264853709012e0ab7bf49)
+---
+ OvmfPkg/OvmfPkg.fdf.inc    | 28 ++++++++++++++++++++++++
+ OvmfPkg/OvmfPkgIa32.dsc    |  4 ++++
+ OvmfPkg/OvmfPkgIa32X64.dsc |  4 ++++
+ OvmfPkg/OvmfPkgX64.dsc     |  4 ++++
+ OvmfPkg/VarStore.fdf.inc   | 54 ++++++++++++++++++++++++++++++++++++++++++++--
+ 5 files changed, 92 insertions(+), 2 deletions(-)
+
+diff --git a/OvmfPkg/OvmfPkg.fdf.inc b/OvmfPkg/OvmfPkg.fdf.inc
+index 4e72e35..b3e0c47 100644
+--- a/OvmfPkg/OvmfPkg.fdf.inc
++++ b/OvmfPkg/OvmfPkg.fdf.inc
+@@ -16,10 +16,21 @@
+ ##
+ 
+ DEFINE BLOCK_SIZE        = 0x1000
++
++#
++# A firmware binary built with FD_SIZE_IN_KB=1024, and a firmware binary built
++# with FD_SIZE_IN_KB=2048, use the same variable store layout.
++#
++# Setting FD_SIZE_IN_KB to 4096 results in a different (much larger) variable
++# store structure that is incompatible with both of the above-mentioned
++# firmware binaries.
++#
++!if ($(FD_SIZE_IN_KB) == 1024) || ($(FD_SIZE_IN_KB) == 2048)
+ DEFINE VARS_SIZE         = 0x20000
+ DEFINE VARS_BLOCKS       = 0x20
+ DEFINE VARS_LIVE_SIZE    = 0xE000
+ DEFINE VARS_SPARE_SIZE   = 0x10000
++!endif
+ 
+ !if $(FD_SIZE_IN_KB) == 1024
+ DEFINE FW_BASE_ADDRESS   = 0xFFF00000
+@@ -45,6 +56,23 @@ DEFINE SECFV_OFFSET      = 0x001CC000
+ DEFINE SECFV_SIZE        = 0x34000
+ !endif
+ 
++!if $(FD_SIZE_IN_KB) == 4096
++DEFINE VARS_SIZE         = 0x84000
++DEFINE VARS_BLOCKS       = 0x84
++DEFINE VARS_LIVE_SIZE    = 0x40000
++DEFINE VARS_SPARE_SIZE   = 0x42000
++
++DEFINE FW_BASE_ADDRESS   = 0xFFC00000
++DEFINE FW_SIZE           = 0x00400000
++DEFINE FW_BLOCKS         = 0x400
++DEFINE CODE_BASE_ADDRESS = 0xFFC84000
++DEFINE CODE_SIZE         = 0x0037C000
++DEFINE CODE_BLOCKS       = 0x37C
++DEFINE FVMAIN_SIZE       = 0x00348000
++DEFINE SECFV_OFFSET      = 0x003CC000
++DEFINE SECFV_SIZE        = 0x34000
++!endif
++
+ SET gUefiOvmfPkgTokenSpaceGuid.PcdOvmfFdBaseAddress     = $(FW_BASE_ADDRESS)
+ SET gUefiOvmfPkgTokenSpaceGuid.PcdOvmfFirmwareFdSize    = $(FW_SIZE)
+ SET gUefiOvmfPkgTokenSpaceGuid.PcdOvmfFirmwareBlockSize = $(BLOCK_SIZE)
+diff --git a/OvmfPkg/OvmfPkgIa32.dsc b/OvmfPkg/OvmfPkgIa32.dsc
+index d329150..44bd86b 100644
+--- a/OvmfPkg/OvmfPkgIa32.dsc
++++ b/OvmfPkg/OvmfPkgIa32.dsc
+@@ -51,9 +51,13 @@
+ !ifdef $(FD_SIZE_2MB)
+   DEFINE FD_SIZE_IN_KB           = 2048
+ !else
++!ifdef $(FD_SIZE_4MB)
++  DEFINE FD_SIZE_IN_KB           = 4096
++!else
+   DEFINE FD_SIZE_IN_KB           = 2048
+ !endif
+ !endif
++!endif
+ 
+ [BuildOptions]
+   GCC:*_UNIXGCC_*_CC_FLAGS             = -DMDEPKG_NDEBUG
+diff --git a/OvmfPkg/OvmfPkgIa32X64.dsc b/OvmfPkg/OvmfPkgIa32X64.dsc
+index 7b694d9..a8ae37c 100644
+--- a/OvmfPkg/OvmfPkgIa32X64.dsc
++++ b/OvmfPkg/OvmfPkgIa32X64.dsc
+@@ -51,9 +51,13 @@
+ !ifdef $(FD_SIZE_2MB)
+   DEFINE FD_SIZE_IN_KB           = 2048
+ !else
++!ifdef $(FD_SIZE_4MB)
++  DEFINE FD_SIZE_IN_KB           = 4096
++!else
+   DEFINE FD_SIZE_IN_KB           = 2048
+ !endif
+ !endif
++!endif
+ 
+ [BuildOptions]
+   GCC:*_UNIXGCC_*_CC_FLAGS             = -DMDEPKG_NDEBUG
+diff --git a/OvmfPkg/OvmfPkgX64.dsc b/OvmfPkg/OvmfPkgX64.dsc
+index 6bb0de2..35bdb85 100644
+--- a/OvmfPkg/OvmfPkgX64.dsc
++++ b/OvmfPkg/OvmfPkgX64.dsc
+@@ -51,9 +51,13 @@
+ !ifdef $(FD_SIZE_2MB)
+   DEFINE FD_SIZE_IN_KB           = 2048
+ !else
++!ifdef $(FD_SIZE_4MB)
++  DEFINE FD_SIZE_IN_KB           = 4096
++!else
+   DEFINE FD_SIZE_IN_KB           = 2048
+ !endif
+ !endif
++!endif
+ 
+ [BuildOptions]
+   GCC:*_UNIXGCC_*_CC_FLAGS             = -DMDEPKG_NDEBUG
+diff --git a/OvmfPkg/VarStore.fdf.inc b/OvmfPkg/VarStore.fdf.inc
+index ce901c0..742fed1 100644
+--- a/OvmfPkg/VarStore.fdf.inc
++++ b/OvmfPkg/VarStore.fdf.inc
+@@ -15,7 +15,12 @@
+ #
+ ##
+ 
++!if ($(FD_SIZE_IN_KB) == 1024) || ($(FD_SIZE_IN_KB) == 2048)
+ 0x00000000|0x0000e000
++!endif
++!if $(FD_SIZE_IN_KB) == 4096
++0x00000000|0x00040000
++!endif
+ #NV_VARIABLE_STORE
+ DATA = {
+   ## This is the EFI_FIRMWARE_VOLUME_HEADER
+@@ -27,14 +32,36 @@ DATA = {
+   #     { 0xA9, 0x85, 0x27, 0x47, 0x07, 0x5B, 0x4F, 0x50 }}
+   0x8D, 0x2B, 0xF1, 0xFF, 0x96, 0x76, 0x8B, 0x4C,
+   0xA9, 0x85, 0x27, 0x47, 0x07, 0x5B, 0x4F, 0x50,
++!if ($(FD_SIZE_IN_KB) == 1024) || ($(FD_SIZE_IN_KB) == 2048)
+   # FvLength: 0x20000
+   0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00,
++!endif
++!if $(FD_SIZE_IN_KB) == 4096
++  # FvLength: 0x84000
++  0x00, 0x40, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00,
++!endif
+   # Signature "_FVH"       # Attributes
+   0x5f, 0x46, 0x56, 0x48, 0xff, 0xfe, 0x04, 0x00,
+-  # HeaderLength # CheckSum # ExtHeaderOffset #Reserved #Revision
+-  0x48, 0x00, 0x19, 0xF9, 0x00, 0x00, 0x00, 0x02,
++  # HeaderLength
++  0x48, 0x00,
++!if ($(FD_SIZE_IN_KB) == 1024) || ($(FD_SIZE_IN_KB) == 2048)
++  # CheckSum
++  0x19, 0xF9,
++!endif
++!if $(FD_SIZE_IN_KB) == 4096
++  # CheckSum
++  0xAF, 0xB8,
++!endif
++  # ExtHeaderOffset #Reserved #Revision
++  0x00, 0x00, 0x00, 0x02,
++!if ($(FD_SIZE_IN_KB) == 1024) || ($(FD_SIZE_IN_KB) == 2048)
+   # Blockmap[0]: 0x20 Blocks * 0x1000 Bytes / Block
+   0x20, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x00,
++!endif
++!if $(FD_SIZE_IN_KB) == 4096
++  # Blockmap[0]: 0x84 Blocks * 0x1000 Bytes / Block
++  0x84, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x00,
++!endif
+   # Blockmap[1]: End
+   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+   ## This is the VARIABLE_STORE_HEADER
+@@ -44,18 +71,36 @@ DATA = {
+   #     { 0xa1, 0x80, 0x2e, 0x14, 0x4e, 0xc3, 0x77, 0x92 }}
+   0x78, 0x2c, 0xf3, 0xaa, 0x7b, 0x94, 0x9a, 0x43,
+   0xa1, 0x80, 0x2e, 0x14, 0x4e, 0xc3, 0x77, 0x92,
++!if ($(FD_SIZE_IN_KB) == 1024) || ($(FD_SIZE_IN_KB) == 2048)
+   # Size: 0xe000 (gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageVariableSize) -
+   #         0x48 (size of EFI_FIRMWARE_VOLUME_HEADER) = 0xdfb8
+   # This can speed up the Variable Dispatch a bit.
+   0xB8, 0xDF, 0x00, 0x00,
++!endif
++!if $(FD_SIZE_IN_KB) == 4096
++  # Size: 0x40000 (gEfiMdeModulePkgTokenSpaceGuid.PcdFlashNvStorageVariableSize) -
++  #          0x48 (size of EFI_FIRMWARE_VOLUME_HEADER) = 0x3ffb8
++  # This can speed up the Variable Dispatch a bit.
++  0xB8, 0xFF, 0x03, 0x00,
++!endif
+   # FORMATTED: 0x5A #HEALTHY: 0xFE #Reserved: UINT16 #Reserved1: UINT32
+   0x5A, 0xFE, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+ }
+ 
++!if ($(FD_SIZE_IN_KB) == 1024) || ($(FD_SIZE_IN_KB) == 2048)
+ 0x0000e000|0x00001000
++!endif
++!if $(FD_SIZE_IN_KB) == 4096
++0x00040000|0x00001000
++!endif
+ #NV_EVENT_LOG
+ 
++!if ($(FD_SIZE_IN_KB) == 1024) || ($(FD_SIZE_IN_KB) == 2048)
+ 0x0000f000|0x00001000
++!endif
++!if $(FD_SIZE_IN_KB) == 4096
++0x00041000|0x00001000
++!endif
+ #NV_FTW_WORKING
+ DATA = {
+   # EFI_FAULT_TOLERANT_WORKING_BLOCK_HEADER->Signature = gEdkiiWorkingBlockSignatureGuid         =
+@@ -68,5 +113,10 @@ DATA = {
+   0xE0, 0x0F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+ }
+ 
++!if ($(FD_SIZE_IN_KB) == 1024) || ($(FD_SIZE_IN_KB) == 2048)
+ 0x00010000|0x00010000
++!endif
++!if $(FD_SIZE_IN_KB) == 4096
++0x00042000|0x00042000
++!endif
+ #NV_FTW_SPARE
+-- 
+1.8.3.1
+

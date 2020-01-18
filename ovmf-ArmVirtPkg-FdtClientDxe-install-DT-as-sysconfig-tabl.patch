@@ -1,0 +1,187 @@
+From 8db5445541920509ba0416b480e4fc65c3c5fade Mon Sep 17 00:00:00 2001
+From: Laszlo Ersek <lersek@redhat.com>
+Date: Wed, 29 Mar 2017 12:26:21 +0200
+Subject: [PATCH 09/11] ArmVirtPkg/FdtClientDxe: install DT as sysconfig table
+ in protocol notify
+
+Message-id: <20170329102623.11570-10-lersek@redhat.com>
+Patchwork-id: 74577
+O-Subject:  [RHEL-7.4 ovmf PATCH 09/11] ArmVirtPkg/FdtClientDxe: install DT as
+	sysconfig table in protocol notify
+Bugzilla: 1430262
+Acked-by: Andrew Jones <drjones@redhat.com>
+Acked-by: Al Stone <ahs3@redhat.com>
+Acked-by: Vitaly Kuznetsov <vkuznets@redhat.com>
+
+Replace the dependency on PcdPureAcpiBoot with a Platform Has Device Tree
+notification callback. Move the sysconfig table installation from the
+entry point function to the callback.
+
+Cc: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+Cc: Leif Lindholm <leif.lindholm@linaro.org>
+Contributed-under: TianoCore Contribution Agreement 1.0
+Signed-off-by: Laszlo Ersek <lersek@redhat.com>
+Reviewed-by: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+(cherry picked from commit 51b09a2c50c60eb5dd3996b97f375eb596c5cc1d)
+---
+ ArmVirtPkg/FdtClientDxe/FdtClientDxe.c   | 105 ++++++++++++++++++++++++++++---
+ ArmVirtPkg/FdtClientDxe/FdtClientDxe.inf |   4 +-
+ 2 files changed, 97 insertions(+), 12 deletions(-)
+
+diff --git a/ArmVirtPkg/FdtClientDxe/FdtClientDxe.c b/ArmVirtPkg/FdtClientDxe/FdtClientDxe.c
+index 547a29f..2d867b1 100644
+--- a/ArmVirtPkg/FdtClientDxe/FdtClientDxe.c
++++ b/ArmVirtPkg/FdtClientDxe/FdtClientDxe.c
+@@ -22,6 +22,7 @@
+ 
+ #include <Guid/Fdt.h>
+ #include <Guid/FdtHob.h>
++#include <Guid/PlatformHasDeviceTree.h>
+ 
+ #include <Protocol/FdtClient.h>
+ 
+@@ -306,6 +307,40 @@ STATIC FDT_CLIENT_PROTOCOL mFdtClientProtocol = {
+   GetOrInsertChosenNode,
+ };
+ 
++STATIC
++VOID
++EFIAPI
++OnPlatformHasDeviceTree (
++  IN EFI_EVENT Event,
++  IN VOID      *Context
++  )
++{
++  EFI_STATUS Status;
++  VOID       *Interface;
++  VOID       *DeviceTreeBase;
++
++  Status = gBS->LocateProtocol (
++                  &gEdkiiPlatformHasDeviceTreeGuid,
++                  NULL,                             // Registration
++                  &Interface
++                  );
++  if (EFI_ERROR (Status)) {
++    return;
++  }
++
++  DeviceTreeBase = Context;
++  DEBUG ((
++    DEBUG_INFO,
++    "%a: exposing DTB @ 0x%p to OS\n",
++    __FUNCTION__,
++    DeviceTreeBase
++    ));
++  Status = gBS->InstallConfigurationTable (&gFdtTableGuid, DeviceTreeBase);
++  ASSERT_EFI_ERROR (Status);
++
++  gBS->CloseEvent (Event);
++}
++
+ EFI_STATUS
+ EFIAPI
+ InitializeFdtClientDxe (
+@@ -316,6 +351,8 @@ InitializeFdtClientDxe (
+   VOID              *Hob;
+   VOID              *DeviceTreeBase;
+   EFI_STATUS        Status;
++  EFI_EVENT         PlatformHasDeviceTreeEvent;
++  VOID              *Registration;
+ 
+   Hob = GetFirstGuidHob (&gFdtHobGuid);
+   if (Hob == NULL || GET_GUID_HOB_DATA_SIZE (Hob) != sizeof (UINT64)) {
+@@ -333,15 +370,65 @@ InitializeFdtClientDxe (
+ 
+   DEBUG ((EFI_D_INFO, "%a: DTB @ 0x%p\n", __FUNCTION__, mDeviceTreeBase));
+ 
+-  if (!FeaturePcdGet (PcdPureAcpiBoot)) {
+-    //
+-    // Only install the FDT as a configuration table if we want to leave it up
+-    // to the OS to decide whether it prefers ACPI over DT.
+-    //
+-    Status = gBS->InstallConfigurationTable (&gFdtTableGuid, DeviceTreeBase);
+-    ASSERT_EFI_ERROR (Status);
++  //
++  // Register a protocol notify for the EDKII Platform Has Device Tree
++  // Protocol.
++  //
++  Status = gBS->CreateEvent (
++                  EVT_NOTIFY_SIGNAL,
++                  TPL_CALLBACK,
++                  OnPlatformHasDeviceTree,
++                  DeviceTreeBase,             // Context
++                  &PlatformHasDeviceTreeEvent
++                  );
++  if (EFI_ERROR (Status)) {
++    DEBUG ((DEBUG_ERROR, "%a: CreateEvent(): %r\n", __FUNCTION__, Status));
++    return Status;
++  }
++
++  Status = gBS->RegisterProtocolNotify (
++                  &gEdkiiPlatformHasDeviceTreeGuid,
++                  PlatformHasDeviceTreeEvent,
++                  &Registration
++                  );
++  if (EFI_ERROR (Status)) {
++    DEBUG ((
++      DEBUG_ERROR,
++      "%a: RegisterProtocolNotify(): %r\n",
++      __FUNCTION__,
++      Status
++      ));
++    goto CloseEvent;
++  }
++
++  //
++  // Kick the event; the protocol could be available already.
++  //
++  Status = gBS->SignalEvent (PlatformHasDeviceTreeEvent);
++  if (EFI_ERROR (Status)) {
++    DEBUG ((DEBUG_ERROR, "%a: SignalEvent(): %r\n", __FUNCTION__, Status));
++    goto CloseEvent;
+   }
+ 
+-  return gBS->InstallProtocolInterface (&ImageHandle, &gFdtClientProtocolGuid,
+-                EFI_NATIVE_INTERFACE, &mFdtClientProtocol);
++  Status = gBS->InstallProtocolInterface (
++                  &ImageHandle,
++                  &gFdtClientProtocolGuid,
++                  EFI_NATIVE_INTERFACE,
++                  &mFdtClientProtocol
++                  );
++  if (EFI_ERROR (Status)) {
++    DEBUG ((
++      DEBUG_ERROR,
++      "%a: InstallProtocolInterface(): %r\n",
++      __FUNCTION__,
++      Status
++      ));
++    goto CloseEvent;
++  }
++
++  return Status;
++
++CloseEvent:
++  gBS->CloseEvent (PlatformHasDeviceTreeEvent);
++  return Status;
+ }
+diff --git a/ArmVirtPkg/FdtClientDxe/FdtClientDxe.inf b/ArmVirtPkg/FdtClientDxe/FdtClientDxe.inf
+index 3a0cd37..8a5182a 100644
+--- a/ArmVirtPkg/FdtClientDxe/FdtClientDxe.inf
++++ b/ArmVirtPkg/FdtClientDxe/FdtClientDxe.inf
+@@ -42,11 +42,9 @@
+   gFdtClientProtocolGuid                  ## PRODUCES
+ 
+ [Guids]
++  gEdkiiPlatformHasDeviceTreeGuid ## CONSUMES ## PROTOCOL
+   gFdtHobGuid
+   gFdtTableGuid
+ 
+-[FeaturePcd]
+-  gArmVirtTokenSpaceGuid.PcdPureAcpiBoot
+-
+ [Depex]
+   TRUE
+-- 
+1.8.3.1
+

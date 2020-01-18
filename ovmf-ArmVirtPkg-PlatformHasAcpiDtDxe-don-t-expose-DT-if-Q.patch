@@ -1,0 +1,190 @@
+From cec46d9ed168a46fb01263243735752d05d4d33e Mon Sep 17 00:00:00 2001
+From: Laszlo Ersek <lersek@redhat.com>
+Date: Wed, 29 Mar 2017 12:26:22 +0200
+Subject: [PATCH 10/11] ArmVirtPkg/PlatformHasAcpiDtDxe: don't expose DT if
+ QEMU provides ACPI
+
+Message-id: <20170329102623.11570-11-lersek@redhat.com>
+Patchwork-id: 74578
+O-Subject:  [RHEL-7.4 ovmf PATCH 10/11] ArmVirtPkg/PlatformHasAcpiDtDxe: don't
+	expose DT if QEMU provides ACPI
+Bugzilla: 1430262
+Acked-by: Andrew Jones <drjones@redhat.com>
+Acked-by: Al Stone <ahs3@redhat.com>
+Acked-by: Vitaly Kuznetsov <vkuznets@redhat.com>
+
+This will let QEMU's "-no-acpi" option exclusively expose DT vs. ACPI to
+the guest. Showing both is never needed (it is actually detrimental to the
+adoption of standards, such as SBSA / SBBR).
+
+* Without "-no-acpi", the firmware logs (from PlatformHasAcpiDtDxe)
+
+> Found FwCfg @ 0x9020008/0x9020000
+> Found FwCfg DMA @ 0x9020010
+> InstallProtocolInterface: [EdkiiPlatformHasAcpi] 0
+
+plus the usual messages. Later the guest kernel logs
+
+> [    0.000000] efi:  SMBIOS 3.0=0x13bdb0000  ACPI 2.0=0x138440000
+>                      MEMATTR=0x13a675018
+
+before it lists the ACPI tables one by one.
+
+In addition, in the guest, the "/sys/firmware/devicetree/*" shell pattern
+matches no files, while the "/sys/firmware/acpi/tables/*" pattern matches
+the ACPI tables.
+
+* With "-no-acpi", the firmware logs:
+
+> PlatformHasAcpiDtDxe | Found FwCfg @ 0x9020008/0x9020000
+> PlatformHasAcpiDtDxe | Found FwCfg DMA @ 0x9020010
+> PlatformHasAcpiDtDxe | InstallProtocolInterface:
+> PlatformHasAcpiDtDxe | [EdkiiPlatformHasDeviceTree] 0
+> FdtClientDxe         | OnPlatformHasDeviceTree: exposing DTB @
+> FdtClientDxe         | 0x13FFBF000 to OS
+> ...
+> DXE_CORE             | Driver [AcpiTableDxe] was discovered but not
+> DXE_CORE             | loaded!!
+> DXE_CORE             | Driver [QemuFwCfgAcpiPlatform] was discovered but
+> DXE_CORE             | not loaded!!
+> ...
+> RamDiskDxe           | RamDiskAcpiCheck: Cannot locate the EFI ACPI
+> RamDiskDxe           | Table Protocol, unable to publish RAM disks to
+> RamDiskDxe           | NFIT.
+
+(BootGraphicsResourceTableDxe's ReadyToBoot callback --
+InstallBootGraphicsResourceTable() -- handles the lack of
+EFI_ACPI_TABLE_PROTOCOL silently.) Later the guest kernel logs
+
+> [    0.000000] efi:  SMBIOS 3.0=0x13bdb0000  MEMATTR=0x138caa018
+
+In addition, in the guest, the "/sys/firmware/devicetree/*" shell pattern
+matches the directory "/sys/firmware/devicetree/base", which contains a
+large number of DT nodes, while the "/sys/firmware/acpi/tables/*" pattern
+matches no files.
+
+Cc: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+Cc: Leif Lindholm <leif.lindholm@linaro.org>
+Ref: https://bugzilla.redhat.com/show_bug.cgi?id=1430262
+Contributed-under: TianoCore Contribution Agreement 1.0
+Signed-off-by: Laszlo Ersek <lersek@redhat.com>
+Reviewed-by: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+(cherry picked from commit 110316a995ed09078028044acce49d3db32245d2)
+---
+ .../PlatformHasAcpiDtDxe/PlatformHasAcpiDtDxe.c    | 45 +++++++++++++---------
+ .../PlatformHasAcpiDtDxe/PlatformHasAcpiDtDxe.inf  |  7 +---
+ 2 files changed, 29 insertions(+), 23 deletions(-)
+
+diff --git a/ArmVirtPkg/PlatformHasAcpiDtDxe/PlatformHasAcpiDtDxe.c b/ArmVirtPkg/PlatformHasAcpiDtDxe/PlatformHasAcpiDtDxe.c
+index a718ce1..8932dac 100644
+--- a/ArmVirtPkg/PlatformHasAcpiDtDxe/PlatformHasAcpiDtDxe.c
++++ b/ArmVirtPkg/PlatformHasAcpiDtDxe/PlatformHasAcpiDtDxe.c
+@@ -17,7 +17,7 @@
+ #include <Guid/PlatformHasDeviceTree.h>
+ #include <Library/BaseLib.h>
+ #include <Library/DebugLib.h>
+-#include <Library/PcdLib.h>
++#include <Library/QemuFwCfgLib.h>
+ #include <Library/UefiBootServicesTableLib.h>
+ 
+ EFI_STATUS
+@@ -27,18 +27,27 @@ PlatformHasAcpiDt (
+   IN EFI_SYSTEM_TABLE *SystemTable
+   )
+ {
+-  EFI_STATUS Status;
+-
+-  Status = EFI_SUCCESS;
++  EFI_STATUS           Status;
++  FIRMWARE_CONFIG_ITEM FwCfgItem;
++  UINTN                FwCfgSize;
+ 
+   //
+   // If we fail to install any of the necessary protocols below, the OS will be
+   // unbootable anyway (due to lacking hardware description), so tolerate no
+   // errors here.
+   //
+-  // Always make ACPI available on 64-bit systems.
+-  //
+-  if (MAX_UINTN == MAX_UINT64) {
++  if (MAX_UINTN == MAX_UINT64 &&
++      !EFI_ERROR (
++         QemuFwCfgFindFile (
++           "etc/table-loader",
++           &FwCfgItem,
++           &FwCfgSize
++           )
++         )) {
++    //
++    // Only make ACPI available on 64-bit systems, and only if QEMU generates
++    // (a subset of) the ACPI tables.
++    //
+     Status = gBS->InstallProtocolInterface (
+                     &ImageHandle,
+                     &gEdkiiPlatformHasAcpiGuid,
+@@ -48,21 +57,21 @@ PlatformHasAcpiDt (
+     if (EFI_ERROR (Status)) {
+       goto Failed;
+     }
++
++    return Status;
+   }
+ 
+   //
+-  // Expose the Device Tree unless PcdPureAcpiBoot is set.
++  // Expose the Device Tree otherwise.
+   //
+-  if (!FeaturePcdGet (PcdPureAcpiBoot)) {
+-    Status = gBS->InstallProtocolInterface (
+-                    &ImageHandle,
+-                    &gEdkiiPlatformHasDeviceTreeGuid,
+-                    EFI_NATIVE_INTERFACE,
+-                    NULL
+-                    );
+-    if (EFI_ERROR (Status)) {
+-      goto Failed;
+-    }
++  Status = gBS->InstallProtocolInterface (
++                  &ImageHandle,
++                  &gEdkiiPlatformHasDeviceTreeGuid,
++                  EFI_NATIVE_INTERFACE,
++                  NULL
++                  );
++  if (EFI_ERROR (Status)) {
++    goto Failed;
+   }
+ 
+   return Status;
+diff --git a/ArmVirtPkg/PlatformHasAcpiDtDxe/PlatformHasAcpiDtDxe.inf b/ArmVirtPkg/PlatformHasAcpiDtDxe/PlatformHasAcpiDtDxe.inf
+index 2450500..4466bea 100644
+--- a/ArmVirtPkg/PlatformHasAcpiDtDxe/PlatformHasAcpiDtDxe.inf
++++ b/ArmVirtPkg/PlatformHasAcpiDtDxe/PlatformHasAcpiDtDxe.inf
+@@ -25,14 +25,14 @@
+   PlatformHasAcpiDtDxe.c
+ 
+ [Packages]
+-  ArmVirtPkg/ArmVirtPkg.dec
+   EmbeddedPkg/EmbeddedPkg.dec
+   MdePkg/MdePkg.dec
++  OvmfPkg/OvmfPkg.dec
+ 
+ [LibraryClasses]
+   BaseLib
+   DebugLib
+-  PcdLib
++  QemuFwCfgLib
+   UefiBootServicesTableLib
+   UefiDriverEntryPoint
+ 
+@@ -40,8 +40,5 @@
+   gEdkiiPlatformHasAcpiGuid       ## SOMETIMES_PRODUCES ## PROTOCOL
+   gEdkiiPlatformHasDeviceTreeGuid ## SOMETIMES_PRODUCES ## PROTOCOL
+ 
+-[FeaturePcd]
+-  gArmVirtTokenSpaceGuid.PcdPureAcpiBoot ## CONSUMES
+-
+ [Depex]
+   TRUE
+-- 
+1.8.3.1
+
