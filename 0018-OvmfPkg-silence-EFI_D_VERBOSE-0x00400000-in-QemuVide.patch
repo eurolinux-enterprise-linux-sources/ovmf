@@ -1,0 +1,93 @@
+From 7eb3be1d4ccafc26c11fe5afb95cc12b250ce6f0 Mon Sep 17 00:00:00 2001
+From: Paolo Bonzini <pbonzini@redhat.com>
+Date: Tue, 21 Nov 2017 00:57:46 +0100
+Subject: OvmfPkg: silence EFI_D_VERBOSE (0x00400000) in QemuVideoDxe (RH only)
+
+Message-id: <20171120235748.29669-6-pbonzini@redhat.com>
+Patchwork-id: 77761
+O-Subject:  [PATCH 5/7] OvmfPkg: silence EFI_D_VERBOSE (0x00400000) in
+	QemuVideoDxe (RH only)
+Bugzilla: 1488247
+Acked-by: Laszlo Ersek <lersek@redhat.com>
+Acked-by: Thomas Huth <thuth@redhat.com>
+
+From: Laszlo Ersek <lersek@redhat.com>
+
+In commit 5b2291f9567a ("OvmfPkg: QemuVideoDxe uses
+MdeModulePkg/FrameBufferLib"), QemuVideoDxe was rebased to
+FrameBufferBltLib.
+
+The FrameBufferBltLib instance added in commit b1ca386074bd
+("MdeModulePkg: Add FrameBufferBltLib library instance") logs many
+messages on the VERBOSE level; for example, a normal boot with OVMF can
+produce 500+ "VideoFill" messages, dependent on the progress bar, when the
+VERBOSE bit is set in PcdDebugPrintErrorLevel.
+
+QemuVideoDxe itself doesn't log anything at the VERBOSE level, so we lose
+none of its messages this way.
+
+Notes about the 20171011-92d07e48907f -> 20180508-ee3198e672e2 rebase:
+
+- no changes
+
+Signed-off-by: Laszlo Ersek <lersek@redhat.com>
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+(this patch was previously applied as commit 9b0d031dee7e823f6717bab73e422fbc6f0a6c52)
+(cherry picked from commit 9122d5f2e8d8d289064d1e1700cb61964d9931f3)
+---
+ OvmfPkg/OvmfPkgIa32.dsc    | 5 ++++-
+ OvmfPkg/OvmfPkgIa32X64.dsc | 5 ++++-
+ OvmfPkg/OvmfPkgX64.dsc     | 5 ++++-
+ 3 files changed, 12 insertions(+), 3 deletions(-)
+
+diff --git a/OvmfPkg/OvmfPkgIa32.dsc b/OvmfPkg/OvmfPkgIa32.dsc
+index 57bf021..2b2e874 100644
+--- a/OvmfPkg/OvmfPkgIa32.dsc
++++ b/OvmfPkg/OvmfPkgIa32.dsc
+@@ -744,7 +744,10 @@
+   MdeModulePkg/Universal/DisplayEngineDxe/DisplayEngineDxe.inf
+   MdeModulePkg/Universal/MemoryTest/NullMemoryTestDxe/NullMemoryTestDxe.inf
+ 
+-  OvmfPkg/QemuVideoDxe/QemuVideoDxe.inf
++  OvmfPkg/QemuVideoDxe/QemuVideoDxe.inf {
++    <PcdsFixedAtBuild>
++      gEfiMdePkgTokenSpaceGuid.PcdDebugPrintErrorLevel|0x8000004F
++  }
+   OvmfPkg/VirtioGpuDxe/VirtioGpu.inf
+ 
+   #
+diff --git a/OvmfPkg/OvmfPkgIa32X64.dsc b/OvmfPkg/OvmfPkgIa32X64.dsc
+index 0e87c8f..892cc5e 100644
+--- a/OvmfPkg/OvmfPkgIa32X64.dsc
++++ b/OvmfPkg/OvmfPkgIa32X64.dsc
+@@ -753,7 +753,10 @@
+   MdeModulePkg/Universal/DisplayEngineDxe/DisplayEngineDxe.inf
+   MdeModulePkg/Universal/MemoryTest/NullMemoryTestDxe/NullMemoryTestDxe.inf
+ 
+-  OvmfPkg/QemuVideoDxe/QemuVideoDxe.inf
++  OvmfPkg/QemuVideoDxe/QemuVideoDxe.inf {
++    <PcdsFixedAtBuild>
++      gEfiMdePkgTokenSpaceGuid.PcdDebugPrintErrorLevel|0x8000004F
++  }
+   OvmfPkg/VirtioGpuDxe/VirtioGpu.inf
+ 
+   #
+diff --git a/OvmfPkg/OvmfPkgX64.dsc b/OvmfPkg/OvmfPkgX64.dsc
+index 38ba204..e7cb582 100644
+--- a/OvmfPkg/OvmfPkgX64.dsc
++++ b/OvmfPkg/OvmfPkgX64.dsc
+@@ -751,7 +751,10 @@
+   MdeModulePkg/Universal/DisplayEngineDxe/DisplayEngineDxe.inf
+   MdeModulePkg/Universal/MemoryTest/NullMemoryTestDxe/NullMemoryTestDxe.inf
+ 
+-  OvmfPkg/QemuVideoDxe/QemuVideoDxe.inf
++  OvmfPkg/QemuVideoDxe/QemuVideoDxe.inf {
++    <PcdsFixedAtBuild>
++      gEfiMdePkgTokenSpaceGuid.PcdDebugPrintErrorLevel|0x8000004F
++  }
+   OvmfPkg/VirtioGpuDxe/VirtioGpu.inf
+ 
+   #
+-- 
+1.8.3.1
+
